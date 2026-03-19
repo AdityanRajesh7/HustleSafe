@@ -467,6 +467,25 @@ Maintains a 30-day GPS heatmap per worker. Genuine delivery partners operate in 
 **Signal 12 — App Integrity / GPS Accuracy Anomaly**  
 Checks for GPS mock app signatures and evaluates reported GPS accuracy values. Real GPS in dense urban environments during rain reports variable accuracy (15–80m). Spoofing apps typically report unnaturally consistent accuracy values (e.g., exactly 5.0m every time).
 
+**Full 12-Signal Reference Table**
+
+| # | Signal | Pass | Type | Critical Flag? |
+|---|--------|------|------|----------------|
+| 1 | GPS Location Match | Pass 1 | Location | No |
+| 2 | Weather Station Correlation | Pass 1 | Environmental | No |
+| 3 | Peer Activity Check | Pass 1 | Behavioural | No |
+| 4 | Historical Pattern Score | Pass 1 | Historical | No |
+| 5 | Device Fingerprint | Pass 1 | Device | No |
+| 6 | GPS Trajectory Coherence Score | Pass 2 | Behavioural | No |
+| 7 | Cell Tower vs. GPS Discordance | Pass 2 | Location | **Yes** |
+| 8 | Accelerometer Motion Signature | Pass 2 | Sensor | No |
+| 9 | Pre-Disruption Shift Verification | Pass 2 | Behavioural | No |
+| 10 | Coordinated Ring Detection | Pass 2 | Network | **Yes** |
+| 11 | Historical Zone Presence Pattern | Pass 2 | Historical | No |
+| 12 | App Integrity / GPS Accuracy Anomaly | Pass 2 | Device | **Yes** |
+
+**Critical Flag signals** (7, 10, 12) bypass the amber band entirely — if any of these fire, the claim routes directly to Insurer Review regardless of the composite score. 
+
 ---
 
 ### 9.3 Adaptive Claim Resolution — Beyond Simple Thresholds
