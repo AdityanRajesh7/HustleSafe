@@ -508,14 +508,14 @@ The composite fraud score (combining Pass 1 and, where triggered, Pass 2) is not
 | 🔴 **Insurer Review** | Score above dynamic reject threshold OR critical signal flagged (cell-tower discordance, ring detection, mock app detected) | Worker notified of review + 24hr ETA; insurer dashboard shows all 12 signals with explanations | "Resolve in Favour of Worker" is primary insurer action for borderline cases |
 | ⚫ **Auto-Reject** | Score > 0.92 AND ≥ 3 of the 7 adversarial signals active (Section 9.2) | Payout blocked; worker notified; escalation to insurer for potential policy suspension | Worker can appeal through insurer channel |
 
-**Special Case: Network Drop During Disruption**
-
+## **Special Case: Network Drop During Disruption**
+---
 A genuine worker in a severe weather zone may lose mobile data entirely. The **"Last Known Good Location" rule** applies:
 - If worker's GPS placed them in the disruption zone within 15 minutes of connectivity loss, the gap is treated as a legitimate signal dropout
 - The fraud score is computed on available signals only, with missing signals treated as neutral (0.5 contribution) rather than suspicious
 - Correlated outages across multiple devices in the same sub-zone at the same time = strong indicator of genuine network disruption, not fraud
 - Individual isolated connectivity drops → routed to Soft Hold (Low Friction), never auto-rejected
-
+---
 ---
 
 ### 9.4 Why This Architecture Is Economically Irrational to Attack
