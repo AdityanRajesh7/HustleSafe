@@ -442,29 +442,29 @@ A genuinely stranded worker and a GPS-spoofing bad actor both appear to be in th
 
 ### 9.2 Extended Anti-Spoofing Signal Set (7 Additional Signals)
 
-**Signal 1 — GPS Trajectory Coherence Score**  
+**Signal 6 — GPS Trajectory Coherence Score**  
 Analyzes the 60-minute GPS trajectory prior to claim. Validates whether movement is physically plausible using Google Maps Roads API snap-to-road validation. Spoofing apps either stay static or produce movements that don't align with actual road geometries.
 
-**Signal 2 — Cell Tower vs. GPS Discordance**  
+**Signal 7 — Cell Tower vs. GPS Discordance**  
 Captures visible network cell tower IDs alongside GPS. Cross-references against city cell tower database (~200–500m accuracy). A discordance of >1.5km between GPS and cell-tower-estimated location is a high-confidence spoofing indicator. *Consumer GPS mock apps cannot override network-layer location data.*
 
-**Signal 3 — Accelerometer Motion Signature**  
+**Signal 8 — Accelerometer Motion Signature**  
 Collects accelerometer readings (DeviceMotion API — no special permissions on Android) alongside GPS pings. A worker on a two-wheeler in rain produces a distinct vibration signature. Computes a **Motion Activity Score** over the prior 30 minutes.
 
-**Signal 4 — Pre-Disruption Shift Verification**  
+**Signal 9 — Pre-Disruption Shift Verification**  
 Worker must have been demonstrably on shift in the disruption zone within the **90-minute window before the disruption event began**. "On shift" = continuous GPS presence in zone for ≥ 20 of the prior 60 minutes + at least one delivery movement pattern + active app session.  
 *This kills passive spoofing attacks: a fraudster who activates GPS spoofing only when an alert fires has no pre-shift history.*
 
-**Signal 5 — Coordinated Ring Detection via Graph Analysis**  
+**Signal 10 — Coordinated Ring Detection via Graph Analysis**  
 Builds a social graph of claim co-occurrence. Red flags:
 - Groups of 5+ workers with GPS coordinates clustered at suspiciously similar static points (genuine workers spread naturally)
 - Workers with shared device network identifiers (same WiFi BSSID from prior sessions)
 - Claim timing synchronized within seconds (atypical of genuine workers individually affected)
 
-**Signal 6 — Historical Zone Presence Pattern**  
+**Signal 11 — Historical Zone Presence Pattern**  
 Maintains a 30-day GPS heatmap per worker. Genuine delivery partners operate in consistent corridors. A fraudster claiming a disruption in a zone they have never historically operated in creates an anomalous outlier — a **Zone Novelty Penalty** is applied unless they have a registered multi-zone policy.
 
-**Signal 7 — App Integrity / GPS Accuracy Anomaly**  
+**Signal 12 — App Integrity / GPS Accuracy Anomaly**  
 Checks for GPS mock app signatures and evaluates reported GPS accuracy values. Real GPS in dense urban environments during rain reports variable accuracy (15–80m). Spoofing apps typically report unnaturally consistent accuracy values (e.g., exactly 5.0m every time).
 
 ---
@@ -777,8 +777,6 @@ Intended to operate under IRDAI Innovation Sandbox regulations (2019) pending ap
 ---
 
 ## 16. Team
-
-> *Add your team details here*
 
 | Name | Role |
 |------|------|
