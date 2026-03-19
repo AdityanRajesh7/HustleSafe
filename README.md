@@ -357,6 +357,9 @@ The architecture above is functionally sound for a hackathon prototype and early
 | **Raw GDS** | | | | **82.5** |
 | Zone Multiplier (flood-prone: 1.04) | | | | **⚫ BLACK — 85.8** |
 
+<img width="1000" height="500" alt="Image" src="https://github.com/user-attachments/assets/a22cdd05-02f6-4f09-8c7b-0b0f49460594" />
+
+
 Compare to fixed-weight GDS for the same event: 81.4. The adaptive model produces a slightly higher score because it has learned that in monsoon Koramangala, rainfall is the dominant income-loss driver and upweights it accordingly.
 
 ### Premium Calculation
