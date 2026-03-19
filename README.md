@@ -1,4 +1,4 @@
-# 🛡️ GigShield
+# 🛡️ HustleSafe
 ### *Hyperlocal Income Protection for India's Gig Economy*
 
 > **Guidewire DEVTrails 2026 — University Hackathon Submission**  
@@ -9,7 +9,7 @@
 ## 📌 Table of Contents
 
 1. [The Problem](#1-the-problem)
-2. [What is GigShield?](#2-what-is-gigshield)
+2. [What is HustleSafe?](#2-what-is-HustleSafe)
 3. [Core Innovations](#3-core-innovations)
 4. [System Architecture](#4-system-architecture)
 5. [Tech Stack](#5-tech-stack)
@@ -41,13 +41,13 @@ When a major rainstorm hits Bangalore, delivery volumes collapse by **60–80% w
 
 Workers in this situation often borrow from informal moneylenders at usurious rates. No existing solution — traditional insurance, government schemes, or platform top-ups — adequately addresses this gap.
 
-**GigShield exists to close it.**
+**HustleSafe exists to close it.**
 
 ---
 
-## 2. What is GigShield?
+## 2. What is HustleSafe?
 
-GigShield is a **real-time, AI-driven parametric income protection platform** built exclusively for food delivery partners. It is not a claims-based insurance tool. It is an **active, intelligent income protection system** that:
+HustleSafe is a **real-time, AI-driven parametric income protection platform** built exclusively for food delivery partners. It is not a claims-based insurance tool. It is an **active, intelligent income protection system** that:
 
 - 🔍 **Detects disruptions** before income is lost
 - ⚡ **Pre-emptively activates** coverage automatically
@@ -67,7 +67,7 @@ Think of it as **"Google Maps + Weather Radar + Insurance Engine"** for the gig 
 
 ### 🌐 Innovation 1 — Hyperlocal Disruption Intelligence Engine (HDIE) with Adaptive GDS
 
-The analytical backbone of GigShield. Ingests **5 real-time data streams** and synthesizes them into a single **Gig Disruption Score (GDS)** for every 2km × 2km zone.
+The analytical backbone of HustleSafe. Ingests **5 real-time data streams** and synthesizes them into a single **Gig Disruption Score (GDS)** for every 2km × 2km zone.
 
 | Data Stream | Source | Base Weight |
 |-------------|--------|-------------|
@@ -95,7 +95,7 @@ Where `w_i(z, season, hour)` is the **zone-season-time-specific weight** for sig
 | Delhi, November–January | AQI (fog + pollution) | ~42% (up from base 10%) |
 | Mumbai, any month, weekday evenings | Traffic Congestion | ~30% (up from base 20%) |
 
-This means GigShield doesn't apply a Mumbai monsoon model to a Bangalore summer. **The system learns which signals actually collapse income in each microzone and reprices risk accordingly.** This is a material departure from standard parametric insurance, which typically uses fixed actuarial tables.
+This means HustleSafe doesn't apply a Mumbai monsoon model to a Bangalore summer. **The system learns which signals actually collapse income in each microzone and reprices risk accordingly.** This is a material departure from standard parametric insurance, which typically uses fixed actuarial tables.
 
 | GDS Range | Zone Status | Map Color | Action |
 |-----------|-------------|-----------|--------|
@@ -122,7 +122,7 @@ A real-time geographic visualization built on **Mapbox GL JS**. Shows every moni
 
 Traditional insurance flow: *Loss → Claim → Investigation → Payout (days/weeks)*
 
-GigShield's flow:
+HustleSafe's flow:
 1. Disruption predicted 30–60 minutes ahead via forecast model
 2. GDS crosses threshold (60+) for a zone
 3. All active insured workers in zone identified via last GPS ping
@@ -318,7 +318,7 @@ The architecture above is functionally sound for a hackathon prototype and early
 ### Worker Journey: Ravi, Swiggy Delivery Partner, Koramangala
 
 **Step 1 — Onboarding (< 4 minutes)**
-1. Opens gigshield.in → sees live Bangalore risk map
+1. Opens HustleSafe.in → sees live Bangalore risk map
 2. Taps "Protect My Income" → phone OTP verification
 3. Selects platform (Swiggy), delivery zone (taps map), declares order volume
 4. System shows: *"Your estimated weekly premium: ₹25 (Standard). Your weekly protection cap: ₹1,200."*
@@ -336,7 +336,7 @@ The architecture above is functionally sound for a hackathon prototype and early
 **Fraudulent Attempt — Deepak from Whitefield**
 - Deepak stays home, tries to fake a rain disruption.
 - HDIE shows Whitefield GDS = 24. **No automatic claim is generated.**
-- GigShield has no manual claim submission. All claims are parametric and automatic.
+- HustleSafe has no manual claim submission. All claims are parametric and automatic.
 - **If the objective trigger didn't fire, there is no claim. By design.**
 
 ---
@@ -414,7 +414,7 @@ The fraud score is not evaluated against a single static threshold. Each worker 
 
 > **Scope:** This section addresses *adversarial* fraud — deliberate, technically sophisticated attacks. Opportunistic fraud (a single worker lying about their location) is handled by the primary model in Section 8. The distinction matters: the two layers target different attack profiles and are evaluated independently before being combined.
 
-### 9.1 How GigShield Differentiates a Genuine Worker from a Bad Actor
+### 9.1 How HustleSafe Differentiates a Genuine Worker from a Bad Actor
 
 A genuinely stranded worker and a GPS-spoofing bad actor both appear to be in the same zone. The differentiation lies in the **behavioral and environmental coherence of the worker's entire digital footprint** over the 30–60 minutes preceding the disruption.
 
@@ -473,7 +473,7 @@ The original three-tier model (Green < 0.50 / Amber 0.50–0.75 / Red > 0.75) us
 
 3. **Fixed boundaries create gaming incentives.** If fraudsters learn the threshold is 0.50, they calibrate their attacks to score 0.48 consistently.
 
-**GigShield's Revised Approach: Context-Aware Adaptive Resolution**
+**HustleSafe's Revised Approach: Context-Aware Adaptive Resolution**
 
 The resolution model combines the fraud score with **three contextual dimensions** before assigning a tier:
 
@@ -515,13 +515,13 @@ Defeating all 12 signals simultaneously requires:
 
 ...all for a payout of **₹180–₹350**.
 
-> GigShield doesn't need to be impenetrable. It needs to make fraud **economically irrational** compared to simply working a delivery shift.
+> HustleSafe doesn't need to be impenetrable. It needs to make fraud **economically irrational** compared to simply working a delivery shift.
 
 ---
 
 ## 10. Premium Model — Feasibility & Worker Value
 
-This section demonstrates that GigShield's pricing is simultaneously **financially sustainable** for the insurer and **meaningfully useful** for the worker — not just affordable on paper.
+This section demonstrates that HustleSafe's pricing is simultaneously **financially sustainable** for the insurer and **meaningfully useful** for the worker — not just affordable on paper.
 
 ### 10.1 Earnings Baseline (Bangalore, Swiggy/Zomato, 2026)
 
@@ -593,11 +593,11 @@ At under 1% of weekly earnings, the Standard premium is affordable even for the 
 | Reinsurance cost (est. 15% of premium) | ₹60,000 |
 | Platform operating cost (infra, support, fraud ops) | ₹40,000 |
 | Payment gateway fees (~1.5%) | ₹6,000 |
-| **Net margin (insurer + GigShield)** | **₹46,000 (~11.5%)** |
+| **Net margin (insurer + HustleSafe)** | **₹46,000 (~11.5%)** |
 
-GigShield's technology fee is 8% of gross premium (₹32,000/month per 1,000 workers), leaving the insurer partner with ~3.5% net margin — thin but viable at scale, and standard for high-volume micro-insurance in emerging markets.
+HustleSafe's technology fee is 8% of gross premium (₹32,000/month per 1,000 workers), leaving the insurer partner with ~3.5% net margin — thin but viable at scale, and standard for high-volume micro-insurance in emerging markets.
 
-**Break-even analysis:** GigShield as a platform breaks even at approximately **800 active Standard-tier workers per city**, assuming ₹35,000/month fixed operating costs (infrastructure, one fraud analyst, one support agent). At 3,000 workers — the Phase 1 Bangalore target — the platform generates ~₹96,000/month in technology fees, which is viable for a seed-stage operation.
+**Break-even analysis:** HustleSafe as a platform breaks even at approximately **800 active Standard-tier workers per city**, assuming ₹35,000/month fixed operating costs (infrastructure, one fraud analyst, one support agent). At 3,000 workers — the Phase 1 Bangalore target — the platform generates ~₹96,000/month in technology fees, which is viable for a seed-stage operation.
 
 ### 10.5 Seasonal Loss Ratio Management
 
@@ -641,8 +641,8 @@ Full OpenAPI docs auto-generated at `/docs` (FastAPI).
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-team/gigshield.git
-cd gigshield
+git clone https://github.com/your-team/HustleSafe.git
+cd HustleSafe
 
 # Copy environment config
 cp .env.example .env
@@ -680,7 +680,7 @@ TWILIO_PHONE_NUMBER=+1234567890
 FIREBASE_SERVER_KEY=your_key_here
 
 # Infrastructure
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/gigshield
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/HustleSafe
 REDIS_URL=redis://localhost:6379
 
 # Security
@@ -749,7 +749,7 @@ The demo is designed as a **5-minute cinematic narrative arc**: one disruption e
 Loss ratio derivation: 0.42 avg claim events/month × ₹310 avg payout = ₹130.20 expected monthly claims cost ÷ ₹100 monthly premium = 62% loss ratio (consistent with Section 10.4 analysis).
 
 ### Commercial Model
-GigShield is **B2B2C**: the platform is sold to a licensed insurer (e.g., Digit Insurance, Acko) which handles regulatory compliance and capital reserves. GigShield provides the intelligence layer and worker UX.
+HustleSafe is **B2B2C**: the platform is sold to a licensed insurer (e.g., Digit Insurance, Acko) which handles regulatory compliance and capital reserves. HustleSafe provides the intelligence layer and worker UX.
 
 ### Distribution
 - Direct enrollment at Zomato/Swiggy partner centers
@@ -790,6 +790,6 @@ Intended to operate under IRDAI Innovation Sandbox regulations (2019) pending ap
 
 ---
 
-*GigShield SRS v2.0 | Confidential | March 2026*
+*HustleSafe SRS v2.0 | Confidential | March 2026*
 
 </div>
