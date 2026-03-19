@@ -369,31 +369,36 @@ See Innovation 4 for the full two-stage pipeline description. The statistical z-
 
 ## 8. Fraud Detection Engine
 
-Every payout event is passed through the Fraud Detection Engine before funds are released.
-
-> **Relationship to Section 9:** Section 8 covers the **primary fraud scoring model** — the five signals used for every payout event. Section 9 covers the **adversarial hardening layer** — additional signals specifically designed to defeat organized GPS-spoofing attacks and fraud rings. They are complementary, not redundant: Section 8 catches opportunistic fraud; Section 9 catches sophisticated adversarial fraud.
+Every payout event passes through the Fraud Detection Engine before funds are released. The engine operates as a **two-pass pipeline**:
+ 
+- **Pass 1 — Primary Scoring (always runs):** 5 lightweight signals evaluated on every claim. Fast and computationally cheap. Catches the majority of opportunistic fraud.
+- **Pass 2 — Adversarial Layer (conditionally triggered):** 7 deeper signals evaluated only when Pass 1 produces an amber score (0.40–0.72) or when a critical flag fires. Targets sophisticated GPS-spoofing and coordinated fraud rings.
+ 
+The combined output of both passes — up to 12 signals total — feeds the Adaptive Resolution model that determines the final claim action. Section 8 covers Pass 1 in full. Section 9 covers Pass 2 and the resolution model.
+ 
 
 ### Five-Signal Primary Fraud Model
 
-| Signal | Data Source | Fraud Indicator |
-|--------|-------------|-----------------|
-| GPS Location Match | Worker app GPS vs. declared zone | Worker GPS outside claimed disruption zone |
-| Weather Station Correlation | OpenWeatherMap grid data | No weather event at worker's actual GPS |
-| Peer Activity Check | Delivery volume feed | Other workers in zone still delivering |
-| Historical Pattern Score | Internal claims DB | Anomalous claim frequency vs. cohort baseline |
-| Device Fingerprint | App metadata | Multiple accounts from same device |
+| # | Signal | Data Source | What It Catches |
+|---|--------|-------------|-----------------|
+| 1 | **GPS Location Match** | Worker app GPS vs. declared disruption zone | Worker physically outside the claimed zone at payout time |
+| 2 | **Weather Station Correlation** | OpenWeatherMap grid data | No weather event present at the worker's actual GPS coordinate |
+| 3 | **Peer Activity Check** | Platform delivery volume feed | Other workers in the same zone are still delivering normally |
+| 4 | **Historical Pattern Score** | Internal claims DB | Claim frequency anomalous vs. worker's own cohort baseline |
+| 5 | **Device Fingerprint** | App metadata | Multiple accounts operating from the same physical device |
+ 
+Each signal contributes a weighted component to a **composite fraud score** between 0.0 and 1.0. The weights are not fixed — GPS Location Match and Weather Correlation carry higher weight than Historical Pattern Score, reflecting their relative reliability as fraud indicators.
 
-### Fraud Score & Adaptive Thresholds
+### Pass 1 Score Outcomes
 
-The fraud score is not evaluated against a single static threshold. Each worker has a **dynamic fraud threshold** that accounts for their individual risk profile and claim history. See Section 9.3 for the full three-tier resolution model.
-
-**Baseline thresholds (new worker, no claim history):**
-
-| Score | Action |
-|-------|--------|
-| < 0.40 | ✅ Auto-approved, payout in < 60 seconds |
-| 0.40 – 0.72 | 🟡 Contextual hold — see Section 9.3 for adaptive resolution |
-| > 0.72 | 🔴 Insurer review queue |
+| Score Band | Interpretation | Next Step |
+|------------|---------------|-----------|
+| < 0.40 | Low fraud risk | → **Pass 1 Complete.** Proceed to Adaptive Resolution (auto-approve path) |
+| 0.40 – 0.72 | Ambiguous — further evaluation needed | → **Trigger Pass 2** (Section 9.2 adversarial signals) |
+| > 0.72 | High fraud risk on primary signals alone | → **Trigger Pass 2**, then route to Insurer Review regardless of Pass 2 output |
+ 
+> **Note:** A Pass 1 score below 0.40 does not automatically release a payout. It clears the fraud gate and enters the Adaptive Resolution model (Section 9.3), which applies worker trust context before confirming the action. The 0.40 threshold here is a routing decision, not a final approval.
+ 
 
 ### Worked Example — Rejected Claim
 
@@ -406,8 +411,9 @@ The fraud score is not evaluated against a single static threshold. Each worker 
 | Device fingerprint | Unique device | OK | 0.00 |
 | **Total Fraud Score** | **0.85** | Threshold: 0.72 | **→ Insurer Review** |
 
----
+Because the score exceeds 0.72, Pass 2 adversarial signals are computed. Even if Pass 2 returns no additional flags, the Insurer Review routing from Pass 1 holds. Pass 2 output would only escalate to Auto-Reject if ≥ 3 adversarial signals are also active (see Section 9.3)
 
+---
 ## 9. Adversarial Defense & Anti-Spoofing Strategy
 
 > **Threat Model:** Organized syndicates using GPS-spoofing apps to fake location inside declared red-alert disruption zones, triggering mass false payouts and draining the liquidity pool.
