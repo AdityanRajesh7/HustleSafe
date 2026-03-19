@@ -776,10 +776,10 @@ Intended to operate under IRDAI Innovation Sandbox regulations (2019) pending ap
 
 | Name | Role |
 |------|------|
-| | Full-Stack Engineer (Next.js / FastAPI) |
-| | ML Engineer (XGBoost / LSTM / MuRIL / Fraud Models) |
-| | Backend Engineer (Data Ingestion / Celery / PostgreSQL) |
-| | Product & UX (Worker App / Dashboard Design) |
+|KURT  | Full-Stack Engineer (Next.js / FastAPI) |
+|KIRAN | ML Engineer (XGBoost / LSTM / MuRIL / Fraud Models) |
+|ADITYAN | Backend Engineer (Data Ingestion / Celery / PostgreSQL) |
+|ADWAITH | Product & UX (Worker App / Dashboard Design) |
 
 ---
 
