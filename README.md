@@ -674,7 +674,7 @@ Full OpenAPI docs auto-generated at `/docs` (FastAPI).
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-team/HustleSafe.git
+git clone https://github.com/AdityanRajesh7/GigShield.git
 cd HustleSafe
 
 # Copy environment config
