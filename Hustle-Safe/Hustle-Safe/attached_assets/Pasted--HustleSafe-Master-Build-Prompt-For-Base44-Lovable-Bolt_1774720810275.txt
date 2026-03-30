@@ -1,0 +1,937 @@
+# HustleSafe — Master Build Prompt
+### For: Base44 / Lovable / Bolt / Rocket
+### Character Budget: ~48,000 of 50,000
+
+---
+
+## PROJECT OVERVIEW
+
+Build **HustleSafe** — a full-stack, production-ready, MVP web application. HustleSafe is a real-time AI-driven parametric income protection platform for India's food delivery gig workers (Zomato/Swiggy partners). It is NOT a traditional insurance claims tool — it is an intelligent, automatic income protection system that detects disruptions, activates coverage pre-emptively, and releases payouts without the worker filing any claim.
+
+**Hackathon Context:** Guidewire DEVTrails 2026 — University Hackathon. This must be polished, impressive, and win-ready.
+
+---
+
+## DESIGN SYSTEM & UI PHILOSOPHY
+
+### Theme
+- **Light themed** — clean white/off-white backgrounds (#FAFAF8, #FFFFFF)
+- **Accent:** Deep slate (#0F172A), electric indigo (#4F46E5), and warm amber (#F59E0B) for status indicators
+- **Typography:** Use `Playfair Display` (display/headings — gives the luxury editorial feel) paired with `DM Sans` (body/UI text — clean and modern). Import from Google Fonts.
+- **Tone:** Minimalist luxury meets fintech precision — think the Cartier reference image: bold typographic statements, generous white space, dramatic contrast, refined detail. Not corporate. Not startup-template. ELEGANT.
+
+### Design Rules
+- Lots of white space — sections breathe
+- Large, bold section headings with thin sub-text
+- Cards with extremely subtle shadows (0 2px 24px rgba(0,0,0,0.06)) and 16px border-radius
+- Thin 1px borders using (#E5E7EB) for card outlines
+- Status colors: GREEN #10B981, YELLOW #F59E0B, RED #EF4444, BLACK/DARK #1E1B4B
+- Smooth transitions: all hover/state changes animate at 200-300ms ease
+- Use shadcn/ui components as the component library base
+- Glassmorphism cards ONLY for the live risk map overlay panels (backdrop-blur-sm, bg-white/80)
+- No gradients except on the hero landing section (subtle radial gradient)
+- Icons: Lucide React exclusively
+
+### Layout
+- Sidebar navigation (240px wide, fixed) for dashboard views
+- Max content width: 1280px, centered
+- Responsive down to 768px minimum
+- Navigation items with active state using left border accent (4px solid #4F46E5)
+
+---
+
+## TECHNOLOGY STACK
+
+```
+Frontend:    React 18 + TypeScript + Vite
+Styling:     Tailwind CSS + shadcn/ui
+State:       Zustand (global state) + React Query (server state)
+Charts:      Recharts
+Maps:        React Simple Maps OR a colored SVG grid (zone visualization)
+Auth:        Supabase Auth (phone OTP + email fallback)
+Database:    Supabase (PostgreSQL)
+Realtime:    Supabase Realtime (websocket subscriptions)
+Payments:    Mock Razorpay UI (test mode UI — no live keys needed)
+Icons:       Lucide React
+Fonts:       Google Fonts (Playfair Display + DM Sans)
+```
+
+---
+
+## DATABASE SCHEMA (Supabase PostgreSQL)
+
+Create these tables:
+
+```sql
+-- Workers / Users
+CREATE TABLE workers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  phone TEXT UNIQUE NOT NULL,
+  email TEXT,
+  platform TEXT CHECK (platform IN ('zomato', 'swiggy', 'both')),
+  zone_id TEXT,
+  upi_id TEXT,
+  platform_rating DECIMAL(2,1) DEFAULT 4.5,
+  policy_tier TEXT CHECK (policy_tier IN ('basic', 'standard', 'pro')),
+  is_active BOOLEAN DEFAULT true,
+  fraud_score DECIMAL(3,2) DEFAULT 0.0,
+  account_age_days INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insurance Policies
+CREATE TABLE policies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  worker_id UUID REFERENCES workers(id),
+  tier TEXT NOT NULL CHECK (tier IN ('basic', 'standard', 'pro')),
+  weekly_premium DECIMAL(8,2) NOT NULL,
+  coverage_cap DECIMAL(10,2) NOT NULL,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
+  activated_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ,
+  zone_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Zones
+CREATE TABLE zones (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  city TEXT NOT NULL,
+  lat DECIMAL(9,6),
+  lng DECIMAL(9,6),
+  gds_score INTEGER DEFAULT 0 CHECK (gds_score BETWEEN 0 AND 100),
+  status TEXT DEFAULT 'normal' CHECK (status IN ('normal', 'elevated', 'high', 'shutdown')),
+  active_workers INTEGER DEFAULT 0,
+  rainfall_mm DECIMAL(6,2) DEFAULT 0,
+  traffic_score DECIMAL(3,1) DEFAULT 0,
+  aqi INTEGER DEFAULT 50,
+  demand_drop_pct INTEGER DEFAULT 0,
+  govt_alert BOOLEAN DEFAULT false,
+  last_updated TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Claims / Payouts
+CREATE TABLE claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  worker_id UUID REFERENCES workers(id),
+  policy_id UUID REFERENCES policies(id),
+  zone_id TEXT,
+  disruption_type TEXT,
+  disruption_start TIMESTAMPTZ,
+  disruption_end TIMESTAMPTZ,
+  hours_affected DECIMAL(4,2),
+  hourly_rate DECIMAL(8,2) DEFAULT 90,
+  payout_amount DECIMAL(10,2),
+  fraud_score DECIMAL(3,2) DEFAULT 0.0,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'auto_approved', 'soft_hold', 'insurer_review', 'auto_rejected', 'paid')),
+  fraud_signals JSONB DEFAULT '{}',
+  resolution_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  paid_at TIMESTAMPTZ
+);
+
+-- Disruption Events (the simulator writes here)
+CREATE TABLE disruption_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  zone_id TEXT,
+  event_type TEXT CHECK (event_type IN ('heavy_rain', 'flood', 'curfew', 'platform_outage', 'strike', 'aqi_hazard')),
+  gds_target INTEGER,
+  duration_minutes INTEGER,
+  triggered_by TEXT DEFAULT 'simulator',
+  is_active BOOLEAN DEFAULT false,
+  started_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Premium History
+CREATE TABLE premium_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  worker_id UUID REFERENCES workers(id),
+  week_start DATE,
+  premium_amount DECIMAL(8,2),
+  zone_risk_adjustment DECIMAL(8,2),
+  worker_risk_adjustment DECIMAL(8,2),
+  explanation TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+Seed the `zones` table with 8 Bangalore zones:
+```
+koramangala, indiranagar, whitefield, electronic_city, hsr_layout, btm_layout, marathahalli, jayanagar
+```
+Each zone starts with GDS 15-30 (normal). Set `active_workers` between 40-200 per zone.
+
+Seed 50 demo workers spread across these zones with random tiers.
+
+---
+
+## SUPABASE REALTIME SETUP
+
+Enable Realtime on these tables: `zones`, `claims`, `disruption_events`
+
+The frontend subscribes to ALL changes on `zones` and `claims` tables, updating the UI live when the simulator fires.
+
+---
+
+## APPLICATION ROUTES & PAGES
+
+### Public Routes (Unauthenticated)
+1. `/` — Landing Page
+2. `/auth` — Login / Register page
+
+### Worker Portal (Authenticated — role: worker)
+3. `/dashboard` — Worker Dashboard
+4. `/policy` — My Policy & Coverage
+5. `/claims` — My Claims History
+6. `/premium` — Premium Breakdown
+7. `/map` — Live Risk Map
+
+### Insurer Dashboard (Authenticated — role: insurer / admin)
+8. `/insurer` — Insurer Overview Dashboard
+9. `/insurer/zones` — Zone Management + Disruption Simulator
+10. `/insurer/claims` — Claims Queue & Fraud Review
+11. `/insurer/analytics` — Analytics & Loss Ratios
+12. `/insurer/workers` — Worker Registry
+
+---
+
+## PAGE SPECIFICATIONS
+
+---
+
+### PAGE 1: LANDING PAGE (`/`)
+
+**Hero Section:**
+- Full-width, light background with a very subtle radial gradient (white → #F0F4FF at center)
+- Massive bold Playfair Display heading: "Income Protection That Thinks Faster Than Storms."
+- Sub-heading in DM Sans, weight 400, muted gray: "Parametric insurance for India's 12 million gig workers. Zero claims. Zero paperwork. Payouts in minutes."
+- Two CTA buttons: "Protect My Income →" (primary, indigo filled) and "View Live Map" (ghost/outline)
+- Animated ticker/badge: "🛡️ 2,847 workers protected across Bangalore"
+- Subtle animated floating cards showing live mock notifications:
+  - Card 1 (bottom left, floating): "💸 ₹270 credited — Ravi K. | Koramangala | Rain disruption"
+  - Card 2 (top right, floating): "⚡ Income Protection ACTIVE — Zone: Indiranagar"
+  - Cards float with CSS keyframe animation (translateY -8px, 3s ease infinite alternate)
+
+**How It Works Section:**
+- 3-column grid with large numbered steps (01, 02, 03 in a thin outline font)
+- Step 1: "Sign Up in 4 Minutes" — Phone OTP, select zone, choose tier
+- Step 2: "We Watch 24/7" — 5 live data streams, AI scoring every zone
+- Step 3: "Get Paid Automatically" — Disruption detected → payout in your UPI within minutes
+- Each card has a Lucide icon, title, and 2-line description
+
+**Stats Bar:**
+- Full-width strip, dark background (#0F172A), white text
+- 4 stats inline: "₹47.2L Paid Out" | "12,000+ Workers Protected" | "< 3 min Avg Payout" | "62% Loss Ratio"
+- Numbers animate up (count-up) when this section scrolls into view
+
+**Coverage Tiers Section:**
+- 3 pricing cards side by side
+- BASIC (₹15/wk, ₹600 cap), STANDARD (₹25/wk, ₹1,200 cap — "Most Popular" badge), PRO (₹40/wk, ₹1,750 cap)
+- Standard card has an indigo border and subtle background tint
+- Each card: tier name, price, coverage cap, list of 4 features (checkmarks), CTA button
+
+**Footer:**
+- Minimal: logo left, links center, "Built for Guidewire DEVTrails 2026" right
+- Very thin top border
+
+---
+
+### PAGE 2: AUTH PAGE (`/auth`)
+
+**Layout:** Centered card, 480px wide, vertically centered on page
+**Left column (60%):** Full-height panel, dark (#0F172A), with animated floating zone status cards (purely decorative, CSS animated)
+**Right column (40%):** Auth form
+
+**Two tabs:** "Worker Sign In" | "Insurer Login"
+
+**Worker Auth Flow:**
+1. Phone number input (Indian format, +91 prefix)
+2. "Send OTP" button → shows 6-digit OTP input
+3. On verify → check if worker exists in DB → if yes, go to `/dashboard` → if no, show registration form:
+   - Full Name (text)
+   - Delivery Platform (radio: Zomato / Swiggy / Both)
+   - Select Zone (dropdown of 8 Bangalore zones)
+   - UPI ID (text)
+   - Select Tier with live preview of premium (Basic/Standard/Pro radio with price shown)
+   - "Activate Protection →" button → creates worker + policy record → redirect to `/dashboard`
+
+**Insurer Auth:**
+- Email + Password (simple, use Supabase Auth)
+- Demo credentials shown: `insurer@hustlesafe.in` / `demo2026`
+- Redirect to `/insurer`
+
+Use Supabase Auth for both. Store user role in `user_metadata`.
+
+---
+
+### PAGE 3: WORKER DASHBOARD (`/dashboard`)
+
+**Top bar:** "Good morning, Ravi 👋" | Current time | Zone: Koramangala | Status pill (live GDS status)
+
+**Alert Banner (conditional, shows when zone GDS > 60):**
+- Full-width amber/red banner: "⚡ DISRUPTION ACTIVE in your zone — Income Protection is ON. Estimated payout: ₹270"
+- Pulsing dot animation on the left
+- This banner appears/disappears in real time via Supabase Realtime subscription to the worker's zone
+
+**Stats Cards Row (4 cards):**
+1. **Policy Status** — "ACTIVE" in green, tier name, expires date
+2. **This Week's Premium** — "₹25" with explainability text below: "Rain forecasted Thu–Fri in your zone"
+3. **Total Earned Back** — "₹1,840" (sum of all paid claims)
+4. **Current Zone GDS** — Large number (e.g., "72") with color based on status, zone name below
+
+**Zone Status Panel:**
+- Large card showing the worker's zone
+- GDS score displayed as a radial progress arc (SVG, colored by GDS level)
+- GDS label: NORMAL / ELEVATED / HIGH DISRUPTION / DELIVERY SHUTDOWN
+- 5 signal bars below showing live signal values:
+  - 🌧 Rainfall: value + mini bar
+  - 🚗 Traffic: value + mini bar
+  - 🌫 AQI: value + mini bar
+  - 📢 Govt Alert: YES/NO badge
+  - 📦 Demand Drop: percentage + mini bar
+- Updates live via Supabase Realtime
+
+**Recent Claims:**
+- Table/card list of last 5 claims
+- Columns: Date, Zone, Type, Amount, Status (colored badge)
+- "View All →" link
+
+**Premium History Chart:**
+- Recharts LineChart — last 8 weeks of premiums
+- Thin indigo line, minimal axes, tooltip on hover
+
+---
+
+### PAGE 4: MY POLICY (`/policy`)
+
+**Active Policy Card (large, prominent):**
+- Tier badge (BASIC / STANDARD / PRO)
+- Coverage cap: "₹1,200 / week"
+- Weekly premium: "₹25"
+- Policy status: Active (green) with animated pulsing dot
+- Policy ID, activation date, renewal date
+- "Upgrade Tier" button
+
+**Coverage Details:**
+- What's covered: list with green checkmarks
+  - Income loss due to heavy rain / flood
+  - Platform outage income loss
+  - Civil disruption / curfew events
+  - AQI hazard (PM2.5 > 200)
+- What's not covered: list with gray X marks
+  - Festival / anticipated holidays
+  - Personal illness
+  - Voluntary shift cancellation
+
+**Tier Comparison Table:**
+- 3 columns (Basic, Standard, Pro) vs feature rows
+- Current tier highlighted
+
+**Payment History:**
+- Simple table: Week, Premium Amount, Status (Paid), Receipt link (mock)
+
+---
+
+### PAGE 5: CLAIMS HISTORY (`/claims`)
+
+**Summary Row:**
+- 3 stat cards: Total Claims | Total Paid Out | Avg Processing Time ("< 2 min")
+
+**Claims Table:**
+- Sortable by date, amount, status
+- Columns: Claim ID, Date, Zone, Event Type, Duration, Payout Amount, Fraud Score (small colored pill), Status (badge)
+- Status badges: AUTO APPROVED (green), SOFT HOLD (amber), INSURER REVIEW (orange), PAID (blue), REJECTED (red)
+- Click a row → expand to show full fraud signal breakdown (accordion):
+  - 5 signal rows with name, observed value, expected value, risk contribution bar
+  - Resolution notes
+
+**Empty state** if no claims: illustrated state with "No disruptions have affected your zone yet. Stay protected — your income guard is active."
+
+---
+
+### PAGE 6: LIVE RISK MAP (`/map`)
+
+**Full-page layout (no sidebar scroll needed)**
+
+**Left Panel (360px):**
+- Zone selector (8 zones listed as cards)
+- Each zone card: zone name, GDS score, status dot (colored), active workers count
+- Click zone → right panel shows detail
+- Updates live via Supabase Realtime
+
+**Right Panel (main area):**
+- Visual zone grid: 4×2 grid of zone cards (representing the city grid)
+- Each zone card colored by GDS status:
+  - GREEN: light green background
+  - YELLOW: amber tint
+  - RED: light red with pulsing border animation
+  - BLACK: dark with white text
+- Zone card shows: Zone name, GDS score (large), active workers, dominant disruption signal
+- Clicking a zone opens a slide-over panel with full zone detail and 6-hour forecast (mock chart)
+
+**Top control bar:**
+- City selector (only Bangalore for now)
+- Last updated timestamp (live)
+- Legend: color ↔ GDS range
+
+**Live Event Feed (bottom strip):**
+- Horizontal scrolling ticker of recent events: "Koramangala → RED (GDS 82) — 3:17 PM | 47 workers notified"
+
+---
+
+### PAGE 7: INSURER DASHBOARD (`/insurer`) ⭐ MOST IMPORTANT
+
+This is the command center. Dark accents, data-dense but clean.
+
+**Top Summary Bar (5 KPI tiles):**
+1. Active Workers: "2,847" 
+2. Zones Monitored: "8 / 8"
+3. Active Disruptions: "2 zones" (RED)
+4. MTD Claims Paid: "₹4.7L"
+5. Current Loss Ratio: "62%" (with trend arrow)
+
+**Main Grid Layout (2 columns):**
+
+**LEFT COLUMN:**
+
+*Zone Risk Overview (Live):*
+- 8 zone tiles in a 2×4 grid
+- Each tile: Zone name, GDS score (large, colored), status label, active workers, estimated liability (₹)
+- Tiles update live via Realtime
+- RED/BLACK zones have a pulsing border animation
+
+*Active Disruption Events:*
+- List of currently active disruption events
+- Each row: Event type icon, zone, GDS, workers affected, estimated payout exposure, time elapsed
+
+**RIGHT COLUMN:**
+
+*The Disruption Simulator Panel — 🔴 CORE FEATURE:*
+
+```
+┌─────────────────────────────────────────────┐
+│  ⚡ DISRUPTION SIMULATOR                     │
+│  Control real-time zone disruption events    │
+│                                              │
+│  Zone: [Dropdown — all 8 zones]             │
+│                                              │
+│  Event Type:                                 │
+│  ○ Heavy Rain  ○ Flood  ○ Curfew            │
+│  ○ Platform Outage  ○ Strike  ○ AQI Hazard  │
+│                                              │
+│  GDS Target: [Slider 0–100]  → 82           │
+│  Duration: [Slider 5–120 min] → 45 min      │
+│                                              │
+│  [TRIGGER DISRUPTION ▶]  [END ALL EVENTS ■] │
+│                                              │
+│  └─ Active: Koramangala FLOOD — 12 min ago  │
+└─────────────────────────────────────────────┘
+```
+
+**Simulator Logic (CRITICAL — must work end-to-end):**
+When "TRIGGER DISRUPTION" is clicked:
+1. Insert a record into `disruption_events` table with `is_active = true`
+2. Update the target `zones` row: set `gds_score` to GDS target, `status` to appropriate level, update `rainfall_mm`/`traffic_score`/etc. based on event type, set `last_updated = NOW()`
+3. Supabase Realtime broadcasts the zone change to ALL connected clients
+4. A background timer (setInterval in Zustand store, `duration_minutes × 60` seconds) counts down
+5. Auto-generate claims for workers in that zone: query workers with active policies in the zone → for each worker, compute payout (hours × ₹90) → insert into `claims` table with `status = 'auto_approved'` (or 'soft_hold' for ~15% randomly)
+6. On the worker dashboard (if logged in as a worker in that zone), the alert banner appears immediately via Realtime
+7. When duration ends (or "END ALL EVENTS" clicked): update zone back to normal GDS (15-25), set `is_active = false` on the event, update worker statuses
+
+**Live Claims Feed (on insurer dashboard):**
+- Real-time scrolling list of new claims as they generate
+- Each claim entry: Worker name, zone, amount, fraud score badge, status badge
+- Appears instantly when claims are inserted via the simulator
+
+*Weekly Analytics Chart:*
+- Recharts BarChart — premiums collected vs claims paid per week (last 8 weeks)
+- Two bars per week (indigo = premium, amber = claims)
+- Loss ratio line overlay
+
+*Reserve Pool Gauge:*
+- Semicircular SVG gauge showing reserve health (green/amber/red)
+- Current reserve: ₹8.4L | Target: ₹12L
+
+---
+
+### PAGE 8: CLAIMS QUEUE (`/insurer/claims`)
+
+**Filter Bar:** All | Pending Review | Auto-Approved | Soft Hold | Rejected
+
+**Claims Table:**
+- Columns: Worker, Zone, Event, Amount, Fraud Score, Status, Actions
+- Fraud Score shown as colored pill (green < 0.40, amber 0.40–0.72, red > 0.72)
+- "Review" button opens a slide-over drawer
+
+**Claim Review Drawer:**
+- Worker info header
+- Fraud Signal Breakdown — 12 signals in a table:
+  - Signal name, pass (1 or 2), observed, expected, risk contribution (progress bar)
+  - Critical signals flagged with ⚠️ icon
+- AI Summary: auto-generated text explanation of why this claim was flagged
+- Action buttons: "✅ Approve & Pay" | "❌ Reject" | "🔄 Request Evidence"
+- Clicking Approve → updates claim status to 'paid', sets paid_at timestamp
+
+---
+
+### PAGE 9: ANALYTICS (`/insurer/analytics`)
+
+**Period selector:** This Week | This Month | Last 3 Months
+
+**Row 1 — 4 KPI cards:**
+- Gross Premium Collected: ₹3,00,000
+- Total Claims Paid: ₹1,86,000  
+- Loss Ratio: 62% (with gauge visual)
+- Active Workers: 2,847
+
+**Row 2 — Charts (3 columns):**
+- Loss Ratio by Zone (Recharts BarChart — horizontal)
+- Claims by Event Type (Recharts PieChart with donut style)
+- Premium Revenue Trend (Recharts AreaChart)
+
+**Row 3 — Tier Distribution:**
+- Recharts BarChart showing workers per tier
+- Unit economics table: Basic / Standard / Pro per-worker expected monthly revenue vs cost
+
+**Seasonal Risk Forecast:**
+- Simple line chart showing expected loss ratio over 12 months (monsoon spike visible June–September)
+
+---
+
+### PAGE 10: WORKER REGISTRY (`/insurer/workers`)
+
+**Search + Filter bar:** Search by name/phone | Filter by zone | Filter by tier | Filter by status
+
+**Workers Table:**
+- Avatar (initials), Name, Phone, Zone, Platform, Tier, Policy Status, Fraud Score, Total Claims, Join Date, Actions
+- Fraud Score colored pill
+- "View Profile" → opens worker detail side panel
+
+**Worker Detail Side Panel:**
+- Full worker info
+- Policy details
+- Claims history mini-table
+- 12-signal fraud profile (latest score)
+- Action: Suspend Policy | Flag for Review
+
+---
+
+## REALTIME ARCHITECTURE (CRITICAL)
+
+```javascript
+// Zustand store handles all realtime state
+// On app load, subscribe to:
+
+supabase
+  .channel('zone-changes')
+  .on('postgres_changes', 
+    { event: 'UPDATE', schema: 'public', table: 'zones' },
+    (payload) => {
+      useZoneStore.getState().updateZone(payload.new)
+    }
+  ).subscribe()
+
+supabase
+  .channel('claim-changes')
+  .on('postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'claims' },
+    (payload) => {
+      useClaimStore.getState().addClaim(payload.new)
+      // If claim zone matches logged-in worker's zone → show alert
+    }
+  ).subscribe()
+```
+
+The Zustand `zoneStore` holds all 8 zone objects. When any zone updates via Realtime, all components reading from the store re-render immediately — no polling needed.
+
+---
+
+## DISRUPTION SIMULATOR — DETAILED LOGIC
+
+This is the CENTERPIECE of the demo. It must work flawlessly.
+
+```typescript
+// simulatorStore.ts (Zustand)
+
+interface SimulatorState {
+  isRunning: boolean;
+  activeEvent: DisruptionEvent | null;
+  countdown: number; // seconds remaining
+  affectedWorkers: number;
+  generatedClaims: Claim[];
+}
+
+async function triggerDisruption(params: {
+  zoneId: string;
+  eventType: EventType;
+  gdsTarget: number;
+  durationMinutes: number;
+}) {
+  // 1. Insert into disruption_events
+  const event = await supabase.from('disruption_events').insert({...params, is_active: true, started_at: new Date()})
+
+  // 2. Update zone GDS and signals
+  const signals = computeSignalsFromEventType(params.eventType, params.gdsTarget)
+  await supabase.from('zones').update({
+    gds_score: params.gdsTarget,
+    status: gdsToStatus(params.gdsTarget),
+    ...signals,
+    last_updated: new Date()
+  }).eq('id', params.zoneId)
+  // ↑ This triggers Supabase Realtime → ALL clients update instantly
+
+  // 3. Find affected workers and generate claims
+  const workers = await supabase
+    .from('workers')
+    .select('*, policies(*)')
+    .eq('zone_id', params.zoneId)
+    .eq('is_active', true)
+
+  // Generate claims for each worker with active policy
+  for (const worker of workers.data) {
+    if (!worker.policies?.length) continue;
+    const fraudScore = generateFraudScore(worker) // 0.05–0.35 for legit, spike for demo fraud case
+    const hoursAffected = params.durationMinutes / 60
+    const payout = Math.min(hoursAffected * 90, worker.policies[0].coverage_cap)
+    const status = fraudScore > 0.72 ? 'insurer_review' : fraudScore > 0.40 ? 'soft_hold' : 'auto_approved'
+    
+    await supabase.from('claims').insert({
+      worker_id: worker.id,
+      policy_id: worker.policies[0].id,
+      zone_id: params.zoneId,
+      disruption_type: params.eventType,
+      disruption_start: new Date(),
+      hours_affected: hoursAffected,
+      payout_amount: payout,
+      fraud_score: fraudScore,
+      status,
+      fraud_signals: generateFraudSignals(fraudScore)
+    })
+    // ↑ Each insert triggers Realtime → claims feed updates on insurer dashboard
+  }
+
+  // 4. Start countdown timer
+  const timer = setInterval(async () => {
+    // decrement countdown, update store
+    if (countdown <= 0) {
+      clearInterval(timer)
+      await endDisruption(params.zoneId, event.data.id)
+    }
+  }, 1000)
+}
+
+function computeSignalsFromEventType(eventType: string, gds: number) {
+  const maps = {
+    heavy_rain: { rainfall_mm: 35 + gds * 0.3, traffic_score: 7.5, demand_drop_pct: 55 },
+    flood: { rainfall_mm: 65 + gds * 0.2, traffic_score: 9.2, demand_drop_pct: 80, govt_alert: true },
+    curfew: { govt_alert: true, demand_drop_pct: 90, traffic_score: 8.0, rainfall_mm: 0 },
+    platform_outage: { demand_drop_pct: 95, traffic_score: 2.0, rainfall_mm: 0 },
+    strike: { demand_drop_pct: 70, govt_alert: true, traffic_score: 6.5, rainfall_mm: 0 },
+    aqi_hazard: { aqi: 280, demand_drop_pct: 40, traffic_score: 5.0, rainfall_mm: 0 }
+  }
+  return maps[eventType] || {}
+}
+```
+
+---
+
+## COMPONENT SPECIFICATIONS
+
+### GDS Radial Gauge Component
+```
+SVG circle, 120px diameter
+Stroke width: 8px
+Background track: #E5E7EB
+Score arc: colored by status (green/amber/red/dark)
+Center: large score number + small "GDS" label
+Animation: arc draws in on mount (CSS stroke-dashoffset animation)
+```
+
+### Zone Status Card Component (used on map + insurer grid)
+```
+Props: zone object
+Card 160px × 180px
+Top: zone name (DM Sans, 13px, uppercase tracking-wide)
+Center: GDS score (Playfair Display, 48px, status color)
+Status label: 11px uppercase badge
+Bottom row: active workers count + dominant signal icon
+Border: 1px solid based on status
+Animation: when status is RED/BLACK, border pulses (opacity 0.4 → 1.0, 1.5s infinite)
+```
+
+### Claim Status Badge Component
+```
+Inline pill badge
+auto_approved → bg-green-50 text-green-700 border border-green-200
+soft_hold → bg-amber-50 text-amber-700 border border-amber-200
+insurer_review → bg-orange-50 text-orange-700 border border-orange-200
+auto_rejected → bg-red-50 text-red-700 border border-red-200
+paid → bg-blue-50 text-blue-700 border border-blue-200
+pending → bg-gray-50 text-gray-600 border border-gray-200
+```
+
+### Live Notification Toast
+```
+When a disruption is triggered (via Realtime), show a toast notification:
+- Position: bottom-right
+- Icon: ⚡ or 🌧️ based on event type  
+- Title: "Disruption Detected — [Zone Name]"
+- Body: "GDS: [score] | [N] workers affected | Claims generating..."
+- Duration: 8 seconds
+- Stack multiple toasts if multiple events
+Use shadcn/ui Sonner toast component
+```
+
+---
+
+## FRAUD SIGNAL VISUALIZATION
+
+When showing fraud details in the claim review panel:
+
+```
+Signal Table:
+┌──────────────────────────┬────────┬────────────────────────┬────────────┐
+│ Signal                   │ Pass   │ Contribution Bar       │ Flag       │
+├──────────────────────────┼────────┼────────────────────────┼────────────┤
+│ GPS Location Match       │ Pass 1 │ ████████░░░░ 0.35      │            │
+│ Weather Correlation      │ Pass 1 │ ██████████░░ 0.28      │            │
+│ Peer Activity Check      │ Pass 1 │ ████░░░░░░░░ 0.12      │            │
+│ Historical Pattern Score │ Pass 1 │ ███░░░░░░░░░ 0.10      │            │
+│ Device Fingerprint       │ Pass 1 │ ░░░░░░░░░░░░ 0.00      │            │
+│ Cell Tower Discordance   │ Pass 2 │ ░░░░░░░░░░░░ 0.00      │ ⚠️ CRITICAL │
+└──────────────────────────┴────────┴────────────────────────┴────────────┘
+Total Score: [0.85] ████████████ HIGH RISK → INSURER REVIEW
+```
+
+Progress bars animated on render. Color: green for low contribution, amber for medium, red for high.
+
+---
+
+## PREMIUM CALCULATOR (Interactive Widget on `/policy` and landing)
+
+Live interactive component:
+- Sliders: Zone (dropdown), Tier (radio), Working days/week (slider)
+- Output updates in real-time:
+  - Base rate: ₹15/25/40
+  - Zone risk adjustment: computed from zone's current GDS
+  - Worker adjustment: based on mock account age
+  - **Total premium per week**
+  - **Weekly coverage cap**
+  - **Premium as % of estimated weekly income** (show: "Just 0.86% of your earnings")
+  - Break-even: "Pays for itself after [X] hours of disruption"
+
+---
+
+## NOTIFICATION & ALERT SYSTEM
+
+**In-App Notifications (Bell icon in header):**
+- Store notifications in Zustand (session only)
+- Types: Disruption Alert, Payout Confirmed, Premium Due, Zone Status Change
+- Unread count badge on bell icon
+- Dropdown panel with last 10 notifications
+
+**Alert Banner (Worker Dashboard):**
+- Appears when Realtime detects worker's zone GDS > 60
+- Dismissible (X button)
+- Auto-disappears when zone returns to normal (GDS < 60)
+- Content: event type icon, message, estimated payout, countdown
+
+---
+
+## INSURER DASHBOARD — ADDITIONAL WIDGETS
+
+**Loss Ratio Gauge:**
+- Semicircular SVG arc, 200px wide
+- 0%–100% range, target zone marked 55%–65% (green zone)
+- Current value needle animates to position
+- Color: green if 50–70%, amber if 70–85%, red if >85%
+
+**Payout Velocity Monitor:**
+- Small card showing: payouts/hour (current zone), total paid last hour
+- Warning if > 200 payouts/zone/hour (hardcoded safety limit)
+
+**Reserve Health:**
+- Current reserve bar (progress) vs target reserve
+- Estimated months of runway at current burn rate
+
+---
+
+## SEED DATA & DEMO SCENARIO
+
+Create a `scripts/seed.ts` or equivalent that populates:
+- 8 Bangalore zones (all GDS 15–25, status normal)
+- 50 workers: 20 in Koramangala, 8 in Indiranagar, 5 in each other zone
+- Policy mix: 30% Basic, 50% Standard, 20% Pro
+- 3 months of historical claims (60 records, mix of statuses)
+- 8 weeks of premium history per worker
+- Two insurer users: `insurer@hustlesafe.in` (password: demo2026) and admin account
+
+Demo worker account: `+91 9876543210` (OTP: `123456` in demo mode, bypass real OTP)
+
+---
+
+## ANIMATIONS & MICRO-INTERACTIONS
+
+1. **Page transitions:** Fade in + slight translateY(8px → 0) on route change, 200ms
+2. **Card hover:** scale(1.01) + box-shadow deepens, 200ms ease
+3. **GDS gauge:** Stroke-dashoffset animation on mount, 800ms ease-out
+4. **Zone status change:** When a zone goes RED via Realtime, the zone card flashes once (opacity 0.3 → 1.0) then starts pulsing border — use CSS animation
+5. **Claims feed:** New items slide in from right with fade, 300ms
+6. **Stats counters:** Count-up animation on first render using `useEffect` + `setInterval`
+7. **Simulator button:** When "TRIGGER DISRUPTION" is clicked, button shows loading spinner for 1.5s (the time it takes to write to DB and generate claims), then SUCCESS state
+8. **Number changes:** When GDS score updates live, the number transitions with a brief highlight (bg flash amber for 500ms)
+
+---
+
+## SIDEBAR NAVIGATION SPEC
+
+**Worker Sidebar:**
+```
+🛡️ HustleSafe (logo/wordmark)
+
+[Active Worker Avatar + Name]
+Zone: Koramangala | Status dot
+
+─────────────
+Overview       (LayoutDashboard icon)
+My Policy      (Shield icon)
+Claims         (FileText icon)
+Premium        (CreditCard icon)
+Live Map       (Map icon)
+─────────────
+Settings       (Settings icon)
+Sign Out       (LogOut icon)
+
+[Bottom: Current GDS for user's zone]
+[Large number + color dot — updates live]
+```
+
+**Insurer Sidebar:**
+```
+🛡️ HustleSafe INSURER
+
+[Insurer Avatar]
+
+─────────────
+Dashboard      (LayoutDashboard)
+Zone Control   (Activity)
+Claims Queue   (ClipboardList)
+Analytics      (BarChart2)
+Workers        (Users)
+─────────────
+Settings
+Sign Out
+
+[Bottom: System Status — All systems operational ✅]
+```
+
+---
+
+## TECHNICAL NOTES FOR BUILDERS
+
+### Environment Variables Needed:
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### Key Packages:
+```json
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.x",
+    "zustand": "^4.x",
+    "@tanstack/react-query": "^5.x",
+    "recharts": "^2.x",
+    "lucide-react": "latest",
+    "sonner": "^1.x",
+    "date-fns": "^3.x",
+    "clsx": "latest",
+    "tailwind-merge": "latest"
+  }
+}
+```
+
+### shadcn/ui Components to Install:
+`button`, `card`, `badge`, `table`, `tabs`, `dialog`, `drawer`, `dropdown-menu`, `select`, `slider`, `input`, `label`, `progress`, `separator`, `sheet`, `skeleton`, `sonner`, `tooltip`, `avatar`, `alert`, `switch`
+
+### Supabase Row Level Security:
+- Workers can only read/write their own data (by auth.uid())
+- Insurers can read all data
+- `disruption_events` INSERT allowed for insurer role only
+- `zones` UPDATE allowed for insurer role only (or via service role in edge function)
+
+### Demo Mode Override:
+If `VITE_DEMO_MODE=true`, skip real OTP verification. Any phone + OTP `123456` logs in as the demo worker. Email `insurer@hustlesafe.in` + password `demo2026` always works.
+
+---
+
+## WHAT THE DEMO FLOW LOOKS LIKE (For Judges)
+
+**0:00** — Open `/insurer`. All 8 Bangalore zones GREEN. 2,847 workers insured. Loss ratio 62%.
+
+**0:30** — Open Disruption Simulator. Select: Zone=Koramangala, Type=Heavy Rain, GDS=82, Duration=45min. Click "TRIGGER DISRUPTION".
+
+**0:35** — Zone map instantly shows Koramangala turning RED. GDS counter animates to 82. Toast notification fires. Claims feed starts populating: "Ravi K — ₹270 — Auto Approved", "Priya S — ₹190 — Auto Approved"...
+
+**1:00** — Open second browser tab as Ravi (worker in Koramangala). Alert banner fires: "⚡ DISRUPTION ACTIVE — Income Protection ON. Estimated payout: ₹270". GDS gauge in worker dashboard shows 82 in red.
+
+**1:30** — Back on insurer: "47 workers affected | 42 auto-approved | 5 flagged | Estimated liability: ₹12,600"
+
+**2:00** — Click into claims queue. Show flagged case (fraud score 0.85). Open review drawer. Walk through 12-signal breakdown.
+
+**2:30** — Show analytics page. Loss ratio live. Premium model explanation.
+
+**3:00** — Click "END ALL EVENTS". Koramangala returns to GREEN. Worker dashboard alert clears. Payout shown as "PAID" in claims history.
+
+**3:30** — Open premium page. Show zone risk adjustment based on the recent disruption event. Adaptive premium for next week updated.
+
+---
+
+## QUALITY CHECKLIST
+
+Before shipping, verify:
+- [ ] All 8 zones load on insurer dashboard with live GDS
+- [ ] Simulator writes to DB and Realtime broadcasts within 2 seconds
+- [ ] Worker dashboard alert banner appears/disappears based on zone GDS
+- [ ] Claims generate for all workers in disrupted zone automatically
+- [ ] Claim review drawer shows 12 fraud signals with contribution bars
+- [ ] All Recharts charts render with real seed data
+- [ ] Auth flow works: new worker registers → policy created → dashboard loads
+- [ ] Insurer login works → full insurer dashboard accessible
+- [ ] All shadcn/ui components render correctly (no missing components)
+- [ ] Mobile responsive at 768px minimum
+- [ ] Fonts loaded: Playfair Display + DM Sans
+- [ ] No console errors in production build
+- [ ] Realtime unsubscribes on component unmount (no memory leaks)
+- [ ] Simulator countdown timer resets on "END ALL EVENTS"
+- [ ] Demo mode: `123456` OTP works for any phone
+
+---
+
+## BRAND ASSETS
+
+**Logo:** Text-based wordmark — "Hustlesafe" in Playfair Display, with a small shield icon (Lucide `Shield`) in indigo (#4F46E5) to the left
+
+**Color Tokens:**
+```css
+--hs-primary: #4F46E5;     /* Indigo */
+--hs-primary-light: #EEF2FF;
+--hs-surface: #FAFAF8;     /* Warm white background */
+--hs-border: #E5E7EB;
+--hs-text: #0F172A;        /* Near-black */
+--hs-text-muted: #6B7280;
+--hs-gds-normal: #10B981;  /* Green */
+--hs-gds-elevated: #F59E0B; /* Amber */
+--hs-gds-high: #EF4444;    /* Red */
+--hs-gds-shutdown: #1E1B4B; /* Deep navy-black */
+```
+
+---
+
+*HustleSafe — Protecting India's gig workforce, one disruption at a time.*
+*Built for Guidewire DEVTrails 2026 | Confidential | March 2026*
