@@ -6,9 +6,18 @@ import { toast } from "sonner";
 import { User, BellRing, ShieldCheck } from "lucide-react";
 
 export function Settings() {
-  const { worker, role } = useAuth();
+  const { worker, role, updateWorker } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Form State
+  const [name, setName] = useState(worker?.name || "");
+  const [phone, setPhone] = useState(worker?.phone || "");
+  const [prefs, setPrefs] = useState({
+    zoneDisruptions: true,
+    claimUpdates: true,
+    premiumPayments: true
+  });
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,6 +25,9 @@ export function Settings() {
     try {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 800));
+      if (role === 'worker' && updateWorker) {
+        updateWorker({ name, phone });
+      }
       toast.success("Settings saved successfully.");
     } catch {
       toast.error("Failed to save settings.");
@@ -73,7 +85,8 @@ export function Settings() {
                         <label className="text-sm font-bold text-muted-foreground">Full Name</label>
                         <input
                           type="text"
-                          defaultValue={worker?.name || ""}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
                           className="w-full bg-muted border-transparent rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                           placeholder="Your Name"
                         />
@@ -82,7 +95,8 @@ export function Settings() {
                         <label className="text-sm font-bold text-muted-foreground">Phone Number</label>
                         <input
                           type="text"
-                          defaultValue={worker?.phone || ""}
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
                           className="w-full bg-muted border-transparent rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                           placeholder="+91 00000 00000"
                         />
@@ -91,7 +105,7 @@ export function Settings() {
                         <label className="text-sm font-bold text-muted-foreground">Role</label>
                         <input
                           type="text"
-                          defaultValue={role === 'insurer' ? 'Insurer / Admin' : 'Worker'}
+                          value={role === 'insurer' ? 'Insurer / Admin' : 'Worker'}
                           disabled
                           className="w-full bg-muted/50 text-muted-foreground border-transparent rounded-xl px-4 py-2 text-sm cursor-not-allowed outline-none"
                         />
@@ -109,21 +123,36 @@ export function Settings() {
                           <p className="font-bold text-sm">Zone Disruptions</p>
                           <p className="text-xs text-muted-foreground">Receive alerts for grid failures or extreme weather in your assigned zone.</p>
                         </div>
-                        <input type="checkbox" defaultChecked className="w-5 h-5 accent-primary" />
+                        <input 
+                          type="checkbox" 
+                          checked={prefs.zoneDisruptions} 
+                          onChange={(e) => setPrefs(prev => ({ ...prev, zoneDisruptions: e.target.checked }))}
+                          className="w-5 h-5 accent-primary cursor-pointer" 
+                        />
                       </label>
                       <label className="flex items-center justify-between p-4 bg-muted rounded-xl cursor-pointer">
                         <div>
                           <p className="font-bold text-sm">Claim Updates</p>
                           <p className="text-xs text-muted-foreground">Get notified when a claim is approved, required, or rejected.</p>
                         </div>
-                        <input type="checkbox" defaultChecked className="w-5 h-5 accent-primary" />
+                        <input 
+                          type="checkbox" 
+                          checked={prefs.claimUpdates} 
+                          onChange={(e) => setPrefs(prev => ({ ...prev, claimUpdates: e.target.checked }))}
+                          className="w-5 h-5 accent-primary cursor-pointer" 
+                        />
                       </label>
                       <label className="flex items-center justify-between p-4 bg-muted rounded-xl cursor-pointer">
                         <div>
                           <p className="font-bold text-sm">Premium Payments</p>
                           <p className="text-xs text-muted-foreground">Alerts for upcoming or missed premium renewals.</p>
                         </div>
-                        <input type="checkbox" defaultChecked className="w-5 h-5 accent-primary" />
+                        <input 
+                          type="checkbox" 
+                          checked={prefs.premiumPayments} 
+                          onChange={(e) => setPrefs(prev => ({ ...prev, premiumPayments: e.target.checked }))}
+                          className="w-5 h-5 accent-primary cursor-pointer" 
+                        />
                       </label>
                     </div>
                   </div>
