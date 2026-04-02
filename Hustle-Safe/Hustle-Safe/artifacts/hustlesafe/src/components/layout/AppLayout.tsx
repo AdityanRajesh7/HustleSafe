@@ -50,8 +50,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div>
           <div className="h-20 flex items-center px-6 border-b border-border/50">
             <Link href={role === 'insurer' ? '/insurer' : '/dashboard'} className="flex items-center gap-3 group">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-                <Shield className="w-4 h-4" />
+              <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden">
+                <img 
+                  src="/images/logo.png" 
+                  alt="HustleSafe" 
+                  className="w-10 h-10 object-contain scale-110"
+                />
               </div>
               <div>
                 <span className="font-display font-bold text-xl tracking-tight text-foreground leading-none">HustleSafe</span>

@@ -30,11 +30,13 @@ export function Landing() {
 
       <nav className="fixed top-0 w-full h-20 border-b border-white/20 bg-white/10 backdrop-blur-xl z-50 flex items-center px-6 md:px-12 justify-between">
         <div className="flex items-center gap-3">
-          <img
-            src="/images/logo.png"
-            alt="HustleSafe"
-            className="w-8 h-8 object-contain"
-          />
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center shadow-xl shadow-primary/5 border border-primary/20 transition-transform">
+            <img
+              src="/images/logo.png"
+              alt="HustleSafe"
+              className="w-14 h-14 object-contain scale-110"
+            />
+          </div>
           <span className="font-display font-bold text-xl tracking-tight">
             HustleSafe
           </span>

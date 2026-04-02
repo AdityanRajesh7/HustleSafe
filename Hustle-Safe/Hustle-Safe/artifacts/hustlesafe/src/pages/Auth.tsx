@@ -352,11 +352,11 @@ export function Auth() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4 }}
           >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-xl shadow-primary/25">
+            <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center shadow-xl shadow-primary/5 border border-primary/20">
               <img
                 src="/images/logo.png"
                 alt="HustleSafe"
-                className="w-7 h-7 object-contain"
+                className="w-18 h-18 object-contain scale-110"
               />
             </div>
           </motion.div>
