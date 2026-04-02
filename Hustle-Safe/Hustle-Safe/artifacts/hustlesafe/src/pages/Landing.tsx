@@ -1,12 +1,5 @@
 import { Link } from "wouter";
-import {
-  Shield,
-  Zap,
-  TrendingDown,
-  ChevronRight,
-  Lock,
-  Activity,
-} from "lucide-react";
+import { Zap, TrendingDown, ChevronRight, Lock, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import LiquidEther from "@/components/LiquidEther";
 import "@/components/LiquidEther.css";
@@ -35,11 +28,13 @@ export function Landing() {
         />
       </div>
 
-      <nav className="fixed top-0 w-full h-20 border-b border-border/50 bg-white backdrop-blur-md z-50 flex items-center px-6 md:px-12 justify-between">
+      <nav className="fixed top-0 w-full h-20 border-b border-white/20 bg-white/10 backdrop-blur-xl z-50 flex items-center px-6 md:px-12 justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            <Shield className="w-4 h-4" />
-          </div>
+          <img
+            src="/images/logo.png"
+            alt="HustleSafe"
+            className="w-8 h-8 object-contain"
+          />
           <span className="font-display font-bold text-xl tracking-tight">
             HustleSafe
           </span>
