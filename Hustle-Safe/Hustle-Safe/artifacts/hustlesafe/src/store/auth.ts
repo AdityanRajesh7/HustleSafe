@@ -4,12 +4,21 @@ import type { Worker } from '@workspace/api-client-react';
 
 export type UserRole = 'worker' | 'insurer' | null;
 
+interface FirebaseUserInfo {
+  uid: string;
+  email: string | null;
+  phoneNumber: string | null;
+  displayName: string | null;
+}
+
 interface AuthState {
   role: UserRole;
   worker: Worker | null;
+  firebaseUser: FirebaseUserInfo | null;
   isAuthenticated: boolean;
-  loginWorker: (worker: Worker) => void;
-  loginInsurer: () => void;
+  loginWorker: (worker: Worker, fbUser?: FirebaseUserInfo) => void;
+  loginInsurer: (fbUser?: FirebaseUserInfo) => void;
+  setFirebaseUser: (user: FirebaseUserInfo | null) => void;
   logout: () => void;
 }
 
@@ -18,10 +27,30 @@ export const useAuth = create<AuthState>()(
     (set) => ({
       role: null,
       worker: null,
+      firebaseUser: null,
       isAuthenticated: false,
-      loginWorker: (worker) => set({ role: 'worker', worker, isAuthenticated: true }),
-      loginInsurer: () => set({ role: 'insurer', worker: null, isAuthenticated: true }),
-      logout: () => set({ role: null, worker: null, isAuthenticated: false }),
+      loginWorker: (worker, fbUser) =>
+        set({
+          role: 'worker',
+          worker,
+          firebaseUser: fbUser ?? null,
+          isAuthenticated: true,
+        }),
+      loginInsurer: (fbUser) =>
+        set({
+          role: 'insurer',
+          worker: null,
+          firebaseUser: fbUser ?? null,
+          isAuthenticated: true,
+        }),
+      setFirebaseUser: (user) => set({ firebaseUser: user }),
+      logout: () =>
+        set({
+          role: null,
+          worker: null,
+          firebaseUser: null,
+          isAuthenticated: false,
+        }),
     }),
     {
       name: 'hustlesafe-auth',

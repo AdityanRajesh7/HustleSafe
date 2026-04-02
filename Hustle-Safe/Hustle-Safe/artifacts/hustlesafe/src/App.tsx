@@ -1,6 +1,8 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
+import { useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import NotFound from "@/pages/not-found";
 
 import { Landing } from "./pages/Landing";
@@ -17,6 +19,8 @@ import { InsurerAnalytics } from "./pages/insurer/Analytics";
 import { InsurerWorkers } from "./pages/insurer/Workers";
 
 import { useAuth } from "./store/auth";
+import { auth as firebaseAuth } from "./lib/firebase";
+import { firebaseSignOut } from "./lib/firebase";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +46,30 @@ function ProtectedRoute({ component: Component, roleRequired, ...rest }: any) {
   }
 
   return <Component {...rest} />;
+}
+
+function FirebaseAuthListener() {
+  const { setFirebaseUser, logout, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user: import("firebase/auth").User | null) => {
+      if (user) {
+        setFirebaseUser({
+          uid: user.uid,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          displayName: user.displayName,
+        });
+      } else if (isAuthenticated) {
+        // Firebase session ended — log user out of Zustand store too
+        logout();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [setFirebaseUser, logout, isAuthenticated]);
+
+  return null;
 }
 
 function Router() {
@@ -74,6 +102,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <FirebaseAuthListener />
         <Router />
       </WouterRouter>
       <Toaster position="bottom-right" richColors />
