@@ -19,6 +19,7 @@ interface AuthState {
   loginWorker: (worker: Worker, fbUser?: FirebaseUserInfo) => void;
   loginInsurer: (fbUser?: FirebaseUserInfo) => void;
   setFirebaseUser: (user: FirebaseUserInfo | null) => void;
+  updateWorker: (updates: Partial<Worker>) => void;
   logout: () => void;
 }
 
@@ -44,6 +45,10 @@ export const useAuth = create<AuthState>()(
           isAuthenticated: true,
         }),
       setFirebaseUser: (user) => set({ firebaseUser: user }),
+      updateWorker: (updates) =>
+        set((state) => ({
+          worker: state.worker ? { ...state.worker, ...updates } : null,
+        })),
       logout: () =>
         set({
           role: null,
