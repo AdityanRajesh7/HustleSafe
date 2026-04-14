@@ -62,6 +62,19 @@ export function WorkerDashboard() {
   const workerZone = worker?.zone_id ? worker.zone_id.replace("_", " ") : "Koramangala";
 
   useEffect(() => {
+    // 1. Define the Hardcoded Fallbacks
+    const FALLBACK_PREMIUM = {
+      current_premium: 25.00,
+      explanation: "[FALLBACK - API OFFLINE] Your premium is ₹25 this week based on standard seasonal risk models."
+    };
+
+    const FALLBACK_STATS = {
+      policy_tier: "Standard",
+      coverage_cap: 1200,
+      total_payouts_ytd: 2450,
+      events_this_year: 7
+    };
+
     const fetchWorkerData = async () => {
       try {
         const controller = new AbortController();
@@ -74,22 +87,35 @@ export function WorkerDashboard() {
         ]);
         clearTimeout(timeoutId);
 
+        // --- Premium API Check ---
         if (premiumRes && premiumRes.ok) {
           const data = await premiumRes.json();
           setPremiumData(data);
+        } else {
+          console.warn("⚠️ [Worker Dashboard] Premium API failed or returned non-200. Using hardcoded fallback.");
+          setPremiumData(FALLBACK_PREMIUM);
         }
 
+        // --- Stats API Check ---
         if (statsRes && statsRes.ok) {
           const data = await statsRes.json();
           setWorkerStats(data);
+        } else {
+          console.warn("⚠️ [Worker Dashboard] Stats API failed. Using hardcoded fallback.");
+          setWorkerStats(FALLBACK_STATS);
         }
 
+        // --- Forecast API Check ---
         if (forecastRes && forecastRes.ok) {
           const data = await forecastRes.json();
           if (data.forecast) setHourlyForecast(getRotatedForecast(data.forecast));
+        } else {
+          console.warn("⚠️ [Worker Dashboard] Forecast API failed. Will rely on fallback hourly array.");
         }
       } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
+        console.error("❌ [Worker Dashboard] Critical API Error. Fallbacks applied.", error);
+        setPremiumData(FALLBACK_PREMIUM);
+        setWorkerStats(FALLBACK_STATS);
       }
     };
     fetchWorkerData();
@@ -147,7 +173,7 @@ export function WorkerDashboard() {
               session_active: true,
               zone_id: worker.zone_id
             })
-          }).catch(() => {});
+          }).catch(() => { });
         }, { enableHighAccuracy: true });
       } catch (err) {
         console.error("Telemetry scheduling failed", err);
@@ -171,7 +197,7 @@ export function WorkerDashboard() {
               <Zap className="w-4 h-4 text-primary" /> Active in {workerZone.toUpperCase()}
             </p>
           </div>
-          
+
           {/* S8 SIMULATION TOGGLE - CLEARLY LABELED */}
           <div className="flex items-center gap-3 bg-card border border-border px-4 py-2 rounded-2xl shadow-sm">
             <div className="flex flex-col">
@@ -182,7 +208,7 @@ export function WorkerDashboard() {
                 {isStationarySim ? "Stationary" : "Active Motion"}
               </span>
             </div>
-            <button 
+            <button
               onClick={() => setIsStationarySim(!isStationarySim)}
               className={cn(
                 "relative w-12 h-6 rounded-full transition-colors duration-200 outline-none",

@@ -57,9 +57,17 @@ export function InsurerDashboard() {
   const [dailyPeaks, setDailyPeaks] = useState<Record<string, { score: number, time: string }>>({});
   const [platformAnalytics, setPlatformAnalytics] = useState<any>(null);
 
-  // NEW: Autonomous Live Zone State & Time Scrubber
   const [liveZones, setLiveZones] = useState<any[]>([]);
   const [simulatedHour, setSimulatedHour] = useState<number | null>(null);
+
+  // Define hardcoded fallback data for the API
+  const FALLBACK_ANALYTICS = {
+    total_workers: 2847,
+    total_paid_out: 470000, // ₹4.7L
+    loss_ratio: 62.0,
+    monthly_premium: 810000, // ₹8.1L Gross Premium Volume
+    zones_in_disruption: 0
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -74,11 +82,17 @@ export function InsurerDashboard() {
 
         clearTimeout(timeoutId);
 
+        // API Check: Analytics Overview
         if (analyticsRes && analyticsRes.ok) {
           const analyticsData = await analyticsRes.json();
           setPlatformAnalytics(analyticsData);
+          console.log("✅ [Insurer Dashboard] Analytics API connected successfully.");
+        } else {
+          console.warn("⚠️ [Insurer Dashboard] Analytics API offline. Using hardcoded FALLBACK_ANALYTICS.");
+          setPlatformAnalytics(FALLBACK_ANALYTICS);
         }
 
+        // API Check: Forecast Hourly
         if (hourlyRes && hourlyRes.ok) {
           const apiData = await hourlyRes.json();
           if (apiData.forecast) {
@@ -96,24 +110,21 @@ export function InsurerDashboard() {
             });
             setDailyPeaks(peaks);
           }
+        } else {
+          console.warn("⚠️ [Insurer Dashboard] Forecast API offline. Using fallbackHourlyForecast.");
         }
       } catch (error) {
-        console.error("Dashboard data fetch failed", error);
+        console.error("❌ [Insurer Dashboard] Critical network error. APIs unreachable.", error);
+        setPlatformAnalytics(FALLBACK_ANALYTICS);
       }
     };
     fetchDashboardData();
     return () => Object.values(timersRef.current).forEach((timer) => clearTimeout(timer));
   }, []);
 
-  // NEW: Autonomous Synchronization Engine
-  // This maps the AI's hourly forecast to the current clock time and auto-triggers disruptions.
   useEffect(() => {
-    // Use real clock time unless the user is using the Time Scrubber for the demo
     const currentHour = simulatedHour !== null ? simulatedHour : new Date().getHours();
-
     let hourlyDataToProcess = aiHourlyData.length > 0 ? aiHourlyData : fallbackHourlyForecast;
-
-    // Find the closest hourly bucket that matches the current time
     let currentHourData = hourlyDataToProcess[0];
     for (const bucket of hourlyDataToProcess) {
       const bucketHour = parseInt(bucket.time.split(':')[0], 10);
@@ -137,7 +148,6 @@ export function InsurerDashboard() {
 
     const updatedZones = zonesToMap.map((zone: any) => {
       const normalizedBackendStatus = normalizeZoneStatus(zone.status, Number(zone.gds_score));
-
       return {
         ...zone,
         gds_score: Number(zone.gds_score),
@@ -180,6 +190,9 @@ export function InsurerDashboard() {
     queryClient.invalidateQueries({ queryKey: ["/api/zones"] });
   };
 
+  // Helper to format currency for the KPI grid
+  const formatLakhs = (val: number) => val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${val?.toLocaleString() || 0}`;
+
   return (
     <AppLayout>
       <div className="space-y-6 pb-12">
@@ -193,20 +206,26 @@ export function InsurerDashboard() {
           </Button>
         </div>
 
+        {/* DYNAMIC KPI GRID */}
         <div className="grid grid-cols-5 gap-3">
-          {[
-            { label: "Active Workers", value: "2,847", sub: "Online" },
-            { label: "Zones Live", value: "8 / 8", sub: "Monitored" },
-            { label: "Active Disruptions", value: liveZones.filter((z) => z.status === 'disrupted').length, sub: "Zones" },
-            { label: "MTD Claims", value: "₹4.7L", sub: "Paid out" },
-            { label: "Loss Ratio", value: "62%", sub: "Target 60%" },
-          ].map((kpi, i) => (
-            <div key={i} className="bg-card border border-border rounded-xl p-3 shadow-sm">
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 truncate">{kpi.label}</div>
-              <div className="text-xl font-display font-bold text-foreground mb-0.5">{kpi.value}</div>
-              <div className="text-[9px] font-bold text-primary uppercase truncate">{kpi.sub}</div>
-            </div>
-          ))}
+          {(() => {
+            const data = platformAnalytics || FALLBACK_ANALYTICS;
+            const dynamicKpiCards = [
+              { label: "Est. Premium", value: formatLakhs(data.monthly_premium || FALLBACK_ANALYTICS.monthly_premium), sub: "Monthly Vol" },
+              { label: "Active Workers", value: data.total_workers?.toLocaleString() || "0", sub: "Platform" },
+              { label: "Zones Live", value: `${liveZones.length} / 8`, sub: "Monitored" },
+              { label: "Active Disruptions", value: liveZones.filter((z) => z.status === 'disrupted').length.toString(), sub: "Zones" },
+              { label: "Loss Ratio", value: `${data.loss_ratio || 0}%`, sub: "Target 60%" },
+            ];
+
+            return dynamicKpiCards.map((kpi, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl p-3 shadow-sm">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 truncate">{kpi.label}</div>
+                <div className="text-xl font-display font-bold text-foreground mb-0.5">{kpi.value}</div>
+                <div className="text-[9px] font-bold text-primary uppercase truncate">{kpi.sub}</div>
+              </div>
+            ));
+          })()}
         </div>
 
         <div className="bg-card rounded-3xl border border-border p-5 shadow-sm">
@@ -256,7 +275,6 @@ export function InsurerDashboard() {
                 <Activity className="w-5 h-5 text-primary" /> Live Zone Grid
               </h2>
 
-              {/* THE DEMO TIME SCRUBBER: Lets you "Fast Forward" to trigger the auto-disruptions */}
               <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg border border-border">
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="text-[10px] font-bold uppercase text-muted-foreground">Clock:</span>
@@ -274,7 +292,6 @@ export function InsurerDashboard() {
               </div>
             </div>
 
-            {/* Changed from zonesData to liveZones so the grid follows the autonomous AI Engine */}
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {liveZones.map((zone) => (
                 <ZoneCard key={zone.id} zone={zone} selected={selectedZone === zone.id} hasTimer={!!activeTimers[zone.id]} onClick={() => setSelectedZone(zone.id)} />

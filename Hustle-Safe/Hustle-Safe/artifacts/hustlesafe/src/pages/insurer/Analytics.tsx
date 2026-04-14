@@ -24,7 +24,7 @@ const fallbackHourlyForecast = [
   { time: '10:00', Koramangala: 35, Indiranagar: 30, Whitefield: 22, Electronic_City: 18, HSR_Layout: 28, BTM_Layout: 32, Marathahalli: 25, Jayanagar: 20 },
   { time: '12:00', Koramangala: 40, Indiranagar: 35, Whitefield: 25, Electronic_City: 20, HSR_Layout: 30, BTM_Layout: 35, Marathahalli: 28, Jayanagar: 22 },
   { time: '14:00', Koramangala: 55, Indiranagar: 45, Whitefield: 30, Electronic_City: 25, HSR_Layout: 40, BTM_Layout: 45, Marathahalli: 35, Jayanagar: 28 },
-  { time: '16:00', Koramangala: 86, Indiranagar: 78, Whitefield: 45, Electronic_City: 35, HSR_Layout: 65, BTM_Layout: 75, Marathahalli: 50, Jayanagar: 40 }, // TODAY'S PEAKS
+  { time: '16:00', Koramangala: 86, Indiranagar: 78, Whitefield: 45, Electronic_City: 35, HSR_Layout: 65, BTM_Layout: 75, Marathahalli: 50, Jayanagar: 40 },
   { time: '18:00', Koramangala: 60, Indiranagar: 55, Whitefield: 35, Electronic_City: 28, HSR_Layout: 45, BTM_Layout: 50, Marathahalli: 40, Jayanagar: 35 },
   { time: '20:00', Koramangala: 45, Indiranagar: 40, Whitefield: 28, Electronic_City: 22, HSR_Layout: 35, BTM_Layout: 40, Marathahalli: 30, Jayanagar: 25 },
   { time: '22:00', Koramangala: 30, Indiranagar: 28, Whitefield: 20, Electronic_City: 15, HSR_Layout: 25, BTM_Layout: 30, Marathahalli: 22, Jayanagar: 18 },
@@ -47,11 +47,20 @@ const getNext7DaysLabels = () => Array.from({ length: 7 }).map((_, i) => {
   return label;
 });
 
+// New hardcoded state for the top level KPIs
+const FALLBACK_OVERVIEW = {
+  active_policies: 2847,
+  total_paid_out: 430000,
+  loss_ratio: 53.0,
+  monthly_premium: 810000
+};
+
 export function InsurerAnalytics() {
   const [ai7DayData, setAi7DayData] = useState<any[]>([]);
   const [aiHourlyData, setAiHourlyData] = useState<any[]>([]);
   const [lossData, setLossData] = useState<any[]>(fallbackLossData);
   const [tierData, setTierData] = useState<any[]>(fallbackTierData);
+  const [overviewData, setOverviewData] = useState<any>(FALLBACK_OVERVIEW);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -60,13 +69,24 @@ export function InsurerAnalytics() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        const [forecast7dRes, forecast24hRes, historyRes] = await Promise.all([
+        const [forecast7dRes, forecast24hRes, historyRes, overviewRes] = await Promise.all([
           fetch('/api/zones/forecast/7-day', { signal: controller.signal }).catch(() => null),
           fetch('/api/zones/forecast/24-hour', { signal: controller.signal }).catch(() => null),
-          fetch('/api/analytics/history', { signal: controller.signal }).catch(() => null)
+          fetch('/api/analytics/history', { signal: controller.signal }).catch(() => null),
+          fetch('/api/analytics/overview', { signal: controller.signal }).catch(() => null)
         ]);
 
         clearTimeout(timeoutId);
+
+        // API Check: Overview KPIs
+        if (overviewRes && overviewRes.ok) {
+          const data = await overviewRes.json();
+          setOverviewData(data);
+          console.log("✅ [Insurer Analytics] Overview API connected successfully.");
+        } else {
+          console.warn("⚠️ [Insurer Analytics] Overview API offline. Using hardcoded FALLBACK_OVERVIEW.");
+          setOverviewData(FALLBACK_OVERVIEW);
+        }
 
         const dynamicDates = getNext7DaysLabels();
         let processed7Day = fallback7DayForecast.map((item, idx) => ({ ...item, day: dynamicDates[idx] }));
@@ -90,7 +110,8 @@ export function InsurerAnalytics() {
         }
 
       } catch (error) {
-        console.warn("Fetch failed, using dynamically synced fallbacks");
+        console.error("❌ [Insurer Analytics] Fetch failed, forcing dynamically synced fallbacks.", error);
+        setOverviewData(FALLBACK_OVERVIEW);
         const dynamicDates = getNext7DaysLabels();
         setAi7DayData(fallback7DayForecast.map((item, idx) => ({ ...item, day: dynamicDates[idx] })));
         setAiHourlyData(fallbackHourlyForecast);
@@ -101,6 +122,8 @@ export function InsurerAnalytics() {
     fetchAnalytics();
   }, []);
 
+  const formatLakhs = (val: number) => val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${val?.toLocaleString() || 0}`;
+
   return (
     <AppLayout>
       <div className="space-y-8 pb-12">
@@ -109,23 +132,23 @@ export function InsurerAnalytics() {
           <p className="text-muted-foreground mt-1">Financial performance and risk distribution.</p>
         </div>
 
-        {/* 4 KPIs */}
+        {/* 4 DYNAMIC KPIs */}
         <div className="grid grid-cols-4 gap-6">
           <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
             <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Gross Premium</div>
-            <div className="text-3xl font-display font-bold">₹8.1L</div>
+            <div className="text-3xl font-display font-bold">{formatLakhs(overviewData.monthly_premium || FALLBACK_OVERVIEW.monthly_premium)}</div>
           </div>
           <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
             <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Claims Paid</div>
-            <div className="text-3xl font-display font-bold text-destructive">₹4.3L</div>
+            <div className="text-3xl font-display font-bold text-destructive">{formatLakhs(overviewData.total_paid_out || FALLBACK_OVERVIEW.total_paid_out)}</div>
           </div>
           <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
             <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Loss Ratio</div>
-            <div className="text-3xl font-display font-bold">53%</div>
+            <div className="text-3xl font-display font-bold">{overviewData.loss_ratio || FALLBACK_OVERVIEW.loss_ratio}%</div>
           </div>
           <div className="bg-card rounded-3xl p-6 border border-border shadow-sm">
             <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Active Policies</div>
-            <div className="text-3xl font-display font-bold text-primary">2,847</div>
+            <div className="text-3xl font-display font-bold text-primary">{overviewData.active_policies?.toLocaleString() || FALLBACK_OVERVIEW.active_policies}</div>
           </div>
         </div>
 
