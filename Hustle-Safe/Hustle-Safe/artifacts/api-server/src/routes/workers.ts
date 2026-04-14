@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, workersTable, gpsHistoryTable, policiesTable, claimsTable } from "@workspace/db";
 import { eq, sql, and, desc } from "drizzle-orm";
+import { provisionWallet } from "../lib/wallet.js";
 
 const router = Router();
 
@@ -92,6 +93,25 @@ router.post("/workers", async (req, res) => {
       fraud_score: "0.05",
       account_age_days: 1,
     }).returning();
+    // Auto-provision a zero-balance wallet for this worker
+    provisionWallet(worker.id).catch((err) =>
+      req.log.error({ err, workerId: worker.id }, "Failed to provision wallet for new worker")
+    );
+
+    // Auto-provision a default active policy so the disruption simulator can generate claims
+    const tierCaps: Record<string, string> = { basic: "400.00", standard: "800.00", pro: "1500.00" };
+    const tierPremiums: Record<string, string> = { basic: "15.00", standard: "28.50", pro: "45.00" };
+    db.insert(policiesTable).values({
+      worker_id: worker.id,
+      tier: policy_tier,
+      weekly_premium: tierPremiums[policy_tier] || "28.50",
+      coverage_cap: tierCaps[policy_tier] || "800.00",
+      status: "active",
+      zone_id: zone_id,
+    }).catch((err) =>
+      req.log.error({ err, workerId: worker.id }, "Failed to auto-provision policy")
+    );
+
     return res.status(201).json(worker);
   } catch (err: unknown) {
     req.log.error({ err }, "Failed to create worker");

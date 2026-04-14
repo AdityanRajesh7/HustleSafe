@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetFraudAuditLog, useListClaims } from "@workspace/api-client-react";
-import { 
-  Zap, ShieldAlert, Cpu, Activity, 
-  MapPin, CloudRain, Users, History, 
-  Fingerprint, Navigation, Radio, Waves, 
-  Clock, Share2, Search, CheckCircle2, 
+import {
+  Zap, ShieldAlert, Cpu, Activity,
+  MapPin, CloudRain, Users, History,
+  Fingerprint, Navigation, Radio, Waves,
+  Clock, Share2, Search, CheckCircle2,
   XCircle, AlertTriangle, ArrowRight, Layers
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -95,12 +95,15 @@ export function InsurerFraudEngine() {
   }, [claimsData, selectedClaimId]);
 
   const claimId = selectedClaim?.id ?? "";
+
+  // FIX: Added the explicit queryKey to satisfy the TypeScript compiler
   const { data: auditLogs } = useGetFraudAuditLog(claimId, {
     query: {
+      queryKey: ["fraudAuditLog", claimId],
       enabled: Boolean(claimId),
       refetchOnWindowFocus: false,
       staleTime: 30_000,
-    }
+    } as any
   });
 
   const latestAudit = useMemo(() => {
@@ -169,14 +172,14 @@ export function InsurerFraudEngine() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Search by Claim ID..." 
+              <input
+                type="text"
+                placeholder="Search by Claim ID..."
                 className="pl-9 pr-4 py-2 bg-card border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 outline-none w-[240px]"
               />
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="font-bold border-primary text-primary hover:bg-primary/5"
               onClick={() => setShowLogs(true)}
             >
@@ -186,8 +189,7 @@ export function InsurerFraudEngine() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          
-          {/* Left Column: Claims Queue / Sidebar */}
+
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
               <div className="p-4 bg-muted/50 border-b border-border flex items-center justify-between">
@@ -208,10 +210,10 @@ export function InsurerFraudEngine() {
                       <span className="font-bold text-sm truncate max-w-[140px]">{claim.worker_name}</span>
                       <span className={cn(
                         "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                        parseFloat(String(claim.fraud_score)) > 0.7 
-                          ? "bg-destructive/10 text-destructive" 
-                          : parseFloat(String(claim.fraud_score)) > 0.4 
-                            ? "bg-warning/10 text-warning" 
+                        parseFloat(String(claim.fraud_score)) > 0.7
+                          ? "bg-destructive/10 text-destructive"
+                          : parseFloat(String(claim.fraud_score)) > 0.4
+                            ? "bg-warning/10 text-warning"
                             : "bg-success/10 text-success"
                       )}>
                         {parseFloat(String(claim.fraud_score || 0)).toFixed(2)}
@@ -241,21 +243,17 @@ export function InsurerFraudEngine() {
             </div>
           </div>
 
-          {/* Right Column: Deep Engine Analysis */}
           <div className="lg:col-span-2 space-y-8">
-            
-            {/* Visual Pipeline Flow */}
+
             <div className="bg-card border border-border rounded-3xl p-8 shadow-sm">
               <div className="flex items-center gap-2 mb-8">
                 <Layers className="w-5 h-5 text-primary" />
                 <h2 className="text-xl font-display font-bold">Two-Pass Evaluation Flow</h2>
               </div>
-              
+
               <div className="relative flex flex-col md:flex-row items-center justify-between gap-4">
-                {/* Connector Line */}
                 <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border -translate-y-1/2 hidden md:block"></div>
-                
-                {/* PASS 1 */}
+
                 <div className="relative z-10 bg-background border-2 border-primary/30 rounded-2xl p-5 w-full md:w-64 shadow-xl">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[10px] font-bold uppercase text-primary">Pass 1: Heuristics</span>
@@ -270,7 +268,7 @@ export function InsurerFraudEngine() {
                       </span>
                     </div>
                     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                      <motion.div 
+                      <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${pass1ScoreValue * 100}%` }}
                         className={cn("h-full", pass2Fired ? "bg-destructive" : "bg-primary")}
@@ -283,7 +281,6 @@ export function InsurerFraudEngine() {
                   <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </div>
 
-                {/* PASS 2 */}
                 <div className={cn(
                   "relative z-10 bg-background border-2 rounded-2xl p-5 w-full md:w-64 shadow-xl transition-all",
                   pass2Fired ? "border-amber-400 grayscale-0 opacity-100" : "border-border grayscale opacity-50"
@@ -306,7 +303,6 @@ export function InsurerFraudEngine() {
                   <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 </div>
 
-                {/* FINAL TIER */}
                 <div className={cn(
                   "relative z-10 bg-background border-2 rounded-2xl p-5 w-full md:w-64 shadow-2xl transition-all",
                   selectedClaim?.status.includes('reject') ? "border-destructive" : "border-success"
@@ -330,9 +326,7 @@ export function InsurerFraudEngine() {
               </div>
             </div>
 
-            {/* Signal Grid */}
             <div className="grid md:grid-cols-2 gap-6">
-              {/* Pass 1 Signals */}
               <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">Pass 1: Primary Signals</h3>
                 <div className="space-y-6">
@@ -351,13 +345,12 @@ export function InsurerFraudEngine() {
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                          <motion.div 
+                          <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${val * 100}%` }}
                             className={cn("h-full", val > 0.6 ? "bg-destructive" : val > 0.3 ? "bg-warning" : "bg-success")}
                           />
                         </div>
-                        {/* Tooltip */}
                         <div className="absolute bottom-full left-0 mb-2 w-full p-3 bg-foreground text-background text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                           <div className="font-bold mb-1">Pass 1 Heuristic: Weight {sig.weight * 100}%</div>
                           {sig.description}
@@ -368,7 +361,6 @@ export function InsurerFraudEngine() {
                 </div>
               </div>
 
-              {/* Pass 2 Signals */}
               <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">Pass 2: Adversarial Checks</h3>
                 <div className="space-y-6">
@@ -377,7 +369,7 @@ export function InsurerFraudEngine() {
                     const val = Math.min(Math.max(rawVal ?? 0, 0), 1);
                     const isCritical = sig.critical;
                     const isFired = val >= 0.9;
-                    
+
                     return (
                       <div key={sig.id} className="group cursor-help relative">
                         <div className="flex justify-between items-center mb-1.5">
@@ -391,13 +383,12 @@ export function InsurerFraudEngine() {
                           </span>
                         </div>
                         <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                          <motion.div 
+                          <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${val * 100}%` }}
                             className={cn("h-full", isFired ? "bg-destructive animate-pulse" : val > 0.3 ? "bg-warning" : "bg-success")}
                           />
                         </div>
-                        {/* Tooltip */}
                         <div className="absolute bottom-full left-0 mb-2 w-full p-3 bg-foreground text-background text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
                           <div className="font-bold mb-1">
                             Pass 2 Adversarial {isCritical && "[CRITICAL FLAG]"}
@@ -411,7 +402,6 @@ export function InsurerFraudEngine() {
               </div>
             </div>
 
-            {/* Analysis Box */}
             <div className="bg-muted/30 border border-border rounded-2xl p-6">
               <h4 className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4" /> Neural Analysis Summary
@@ -462,14 +452,14 @@ export function InsurerFraudEngine() {
         </div>
         <AnimatePresence>
           {showLogs && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
               onClick={() => setShowLogs(false)}
             >
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.95, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.95, y: 20 }}

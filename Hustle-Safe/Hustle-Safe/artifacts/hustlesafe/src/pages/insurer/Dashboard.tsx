@@ -147,11 +147,24 @@ export function InsurerDashboard() {
       ];
 
     const updatedZones = zonesToMap.map((zone: any) => {
-      const normalizedBackendStatus = normalizeZoneStatus(zone.status, Number(zone.gds_score));
+const safeKey = zone.name.replace(" ", "_");
+      // Use the AI's prediction for this exact hour
+      const aiScore = currentHourData[safeKey] || 0;
+
+      // Use whichever is higher: real backend score (disruption) or AI prediction
+      const finalScore = Math.max(Number(zone.gds_score), aiScore);
+
+      // AUTONOMOUS TRIGGER LOGIC
+      let computedStatus = zone.status;
+
+      // If there is NO manual timer running, let the highest score dictate the status
+      if (!activeTimers[zone.id]) {
+        computedStatus = normalizeZoneStatus(zone.status, finalScore);
+      }
       return {
         ...zone,
-        gds_score: Number(zone.gds_score),
-        status: normalizedBackendStatus,
+        gds_score: finalScore,
+        status: computedStatus,
       };
     });
 

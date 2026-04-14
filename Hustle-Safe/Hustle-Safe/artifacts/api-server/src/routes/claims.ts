@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { db, claimsTable, workersTable, zonesTable, fraudAuditLogTable } from "@workspace/db";
+import { db, claimsTable, workersTable, zonesTable, walletsTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { broadcastNotification } from "./notifications.js";
-import { runPass1Scorer, FraudEvaluationContext } from "../lib/fraud_logic.js";
+import { creditWallet } from "../lib/wallet.js";
 
 const router = Router();
 
@@ -80,10 +80,10 @@ router.get("/claims/:id", async (req, res) => {
       .where(eq(claimsTable.id, req.params.id));
 
     if (!claimRaw) return res.status(404).json({ error: "Claim not found" });
-    
-    return res.json({ 
-      ...claimRaw.claim, 
-      worker_name: claimRaw.worker_name, 
+
+    return res.json({
+      ...claimRaw.claim,
+      worker_name: claimRaw.worker_name,
       zone_name: claimRaw.zone_name,
       pass1_composite: claimRaw.audit?.pass1_composite ?? null,
       pass2_composite: claimRaw.audit?.pass2_composite ?? null,
@@ -107,6 +107,33 @@ router.patch("/claims/:id", async (req, res) => {
 
     const [updated] = await db.update(claimsTable).set(updates).where(eq(claimsTable.id, req.params.id)).returning();
     if (!updated) return res.status(404).json({ error: "Claim not found" });
+
+    // When a claim is marked paid, credit the worker's wallet atomically
+    if (status === "paid" && updated.payout_amount && parseFloat(updated.payout_amount) > 0) {
+      try {
+        const [wallet] = await db
+          .select()
+          .from(walletsTable)
+          .where(eq(walletsTable.worker_id, updated.worker_id))
+          .limit(1);
+
+        if (wallet) {
+          await creditWallet(
+            wallet.id,
+            updated.worker_id,
+            updated.payout_amount,
+            "claim_payout",
+            updated.id,
+            `Claim payout — ${updated.disruption_type?.replace(/_/g, " ") || "disruption event"}`
+          );
+        } else {
+          req.log.warn({ workerId: updated.worker_id }, "No wallet found for worker — skipping credit");
+        }
+      } catch (walletErr) {
+        // Non-fatal: claim is already marked paid, just log the wallet error
+        req.log.error({ err: walletErr, claimId: updated.id }, "Failed to credit wallet for paid claim");
+      }
+    }
 
     broadcastNotification({
       id: updated.id,
