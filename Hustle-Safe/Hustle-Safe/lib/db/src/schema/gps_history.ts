@@ -1,4 +1,4 @@
-import { pgTable, uuid, decimal, boolean, timestamp, real } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, decimal, boolean, timestamp, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,7 +11,8 @@ export const gpsHistoryTable = pgTable("gps_history", {
   cell_lat: decimal("cell_lat", { precision: 9, scale: 6 }),
   cell_lng: decimal("cell_lng", { precision: 9, scale: 6 }),
   session_active: boolean("session_active").default(true).notNull(),
-  zone_id: uuid("zone_id"),
+  // Update this field to text to match the zones table id
+  zone_id: text("zone_id"),
   timestamp: timestamp("timestamp", { withTimezone: true }).defaultNow().notNull(),
 });
 

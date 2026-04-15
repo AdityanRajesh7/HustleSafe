@@ -1,46 +1,45 @@
 import fs from "fs";
 import pg from "pg";
 
-const envPath = ".env";
-const envFile = fs.readFileSync(envPath, "utf-8");
-let dbUrl = "";
-for (const line of envFile.split("\n")) {
-  if (line.startsWith("DATABASE_URL=")) {
-    dbUrl = line.split("=").slice(1).join("=").trim().replace(/['"]/g, "");
+// Instruct the Node process to temporarily accept the self-signed certificate
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+const localEnvFile = fs.readFileSync(".env", "utf-8");
+let activeDatabaseUrl = "";
+
+for (const lineEntry of localEnvFile.split("\n")) {
+  if (lineEntry.startsWith("DATABASE_URL=")) {
+    activeDatabaseUrl = lineEntry.split("=").slice(1).join("=").trim().replace(/['"]/g, "");
   }
 }
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: dbUrl, max: 1 });
+const cleanupPool = new Pool({
+  connectionString: activeDatabaseUrl,
+  max: 1
+});
 
-async function run() {
-  const client = await pool.connect();
+async function runCleanupOperation() {
+  const activeClient = await cleanupPool.connect();
   try {
-    await client.query("BEGIN");
-    console.log("Fixing 679f");
-    
-    // Provision missing wallet solely for duplicate worker
-    await client.query(`
-        INSERT INTO wallets (worker_id, balance, currency)
-        VALUES ('679fc739-255f-4b4f-9b96-4c92d25b3f9d', '0.00', 'INR')
-        ON CONFLICT DO NOTHING
+    await activeClient.query("BEGIN");
+    console.log("Initiating database correction...");
+
+    await activeClient.query(`
+        UPDATE zones
+        SET gds_score = 0, status = 'normal'
+        WHERE id = 'koramangala'
     `);
 
-    // Provision missing policy
-    await client.query(`
-        INSERT INTO policies (worker_id, tier, weekly_premium, coverage_cap, status, zone_id)
-        VALUES ('679fc739-255f-4b4f-9b96-4c92d25b3f9d', 'basic', 15.00, 400.00, 'active', 'koramangala')
-        ON CONFLICT DO NOTHING
-    `);
-
-    await client.query("COMMIT");
-    console.log("Fixed 679f");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("FAIL:", err);
+    await activeClient.query("COMMIT");
+    console.log("Correction applied successfully. The map should now reflect normal status.");
+  } catch (executionError) {
+    await activeClient.query("ROLLBACK");
+    console.error("Cleanup failed during execution:", executionError);
   } finally {
-    client.release();
+    activeClient.release();
     process.exit(0);
   }
 }
-run();
+
+runCleanupOperation();
